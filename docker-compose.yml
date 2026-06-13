@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: handdam-postgres
+    environment:
+      POSTGRES_USER: handdam
+      POSTGRES_PASSWORD: handdam
+      POSTGRES_DB: handdam
+    ports:
+      - "5432:5432"
+    volumes:
+      - handdam-pgdata:/var/lib/postgresql/data
+      # creates postgis + pg_trgm extensions on first init
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U handdam -d handdam"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: handdam-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  handdam-pgdata:
