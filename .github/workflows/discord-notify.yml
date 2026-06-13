@@ -1,0 +1,24 @@
+name: Discord Notify
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send push notification to Discord
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref_name }}
+          AUTHOR: ${{ github.event.head_commit.author.name }}
+          MSG: ${{ github.event.head_commit.message }}
+          URL: ${{ github.event.head_commit.url }}
+        run: |
+          # build JSON safely with jq (handles quotes/newlines in commit messages)
+          CONTENT=$(printf '📦 **%s** `%s` 새 푸시\n👤 %s\n📝 %s\n🔗 %s' \
+            "$REPO" "$REF" "$AUTHOR" "$MSG" "$URL")
+          jq -n --arg c "$CONTENT" '{content: $c}' \
+            | curl -sf -H "Content-Type: application/json" -d @- "$WEBHOOK"
