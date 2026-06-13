@@ -2,4 +2,5 @@
 // drizzle-kit see the full schema. Add new per-module schema files below.
 export * from './enums';
 export * from './users';
+export * from './auth';
 export * from './regions';
