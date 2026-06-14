@@ -11,7 +11,7 @@ import { UsersRepository } from './users.repository';
 type UserStatus = (typeof userStatusEnum.enumValues)[number];
 
 export interface OAuthProfile {
-  provider: 'KAKAO' | 'NAVER';
+  provider: 'KAKAO' | 'NAVER' | 'GOOGLE';
   providerUserId: string;
   displayName: string;
   email?: string | null;

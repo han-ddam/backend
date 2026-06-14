@@ -7,9 +7,10 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { TokenService } from './tokens/token.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { KAKAO_OAUTH, NAVER_OAUTH } from './oauth/oauth.port';
+import { KAKAO_OAUTH, NAVER_OAUTH, GOOGLE_OAUTH } from './oauth/oauth.port';
 import { KakaoOAuthAdapter } from './oauth/kakao.adapter';
 import { NaverOAuthAdapter } from './oauth/naver.adapter';
+import { GoogleOAuthAdapter } from './oauth/google.adapter';
 
 /** Member authentication (social login). */
 @Module({
@@ -35,6 +36,7 @@ import { NaverOAuthAdapter } from './oauth/naver.adapter';
     JwtAuthGuard,
     { provide: KAKAO_OAUTH, useClass: KakaoOAuthAdapter },
     { provide: NAVER_OAUTH, useClass: NaverOAuthAdapter },
+    { provide: GOOGLE_OAUTH, useClass: GoogleOAuthAdapter },
   ],
   exports: [JwtAuthGuard],
 })

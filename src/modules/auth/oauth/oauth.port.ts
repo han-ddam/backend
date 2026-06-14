@@ -7,3 +7,4 @@ export interface OAuthVerifierPort {
 
 export const KAKAO_OAUTH = Symbol('KAKAO_OAUTH');
 export const NAVER_OAUTH = Symbol('NAVER_OAUTH');
+export const GOOGLE_OAUTH = Symbol('GOOGLE_OAUTH');

@@ -31,6 +31,12 @@ export class AuthController {
     return this.auth.loginWithOAuth('NAVER', dto.accessToken);
   }
 
+  @Post('oauth/google')
+  google(@Body() dto: OAuthLoginDto) {
+    // accessToken 필드에 Google ID token 전달
+    return this.auth.loginWithOAuth('GOOGLE', dto.accessToken);
+  }
+
   @Post('refresh')
   @HttpCode(200)
   refresh(@Body() dto: RefreshDto) {

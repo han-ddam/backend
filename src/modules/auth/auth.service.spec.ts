@@ -5,6 +5,7 @@ describe('AuthService', () => {
   let tokens: any;
   let kakao: any;
   let naver: any;
+  let google: any;
   let service: AuthService;
 
   const user = { id: 'u1' };
@@ -24,7 +25,8 @@ describe('AuthService', () => {
     };
     kakao = { verify: jest.fn() };
     naver = { verify: jest.fn() };
-    service = new AuthService(users, tokens, kakao, naver);
+    google = { verify: jest.fn() };
+    service = new AuthService(users, tokens, kakao, naver, google);
   });
 
   describe('loginWithOAuth', () => {
@@ -48,6 +50,16 @@ describe('AuthService', () => {
 
       expect(naver.verify).toHaveBeenCalledWith('naver-token');
       expect(kakao.verify).not.toHaveBeenCalled();
+    });
+
+    it('uses the Google verifier for GOOGLE', async () => {
+      google.verify.mockResolvedValue({ provider: 'GOOGLE', providerUserId: 'g1', displayName: 'g' });
+
+      await service.loginWithOAuth('GOOGLE', 'google-idtoken');
+
+      expect(google.verify).toHaveBeenCalledWith('google-idtoken');
+      expect(kakao.verify).not.toHaveBeenCalled();
+      expect(naver.verify).not.toHaveBeenCalled();
     });
   });
 

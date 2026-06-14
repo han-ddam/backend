@@ -4,6 +4,7 @@ import { TokenService, type TokenPair } from './tokens/token.service';
 import {
   KAKAO_OAUTH,
   NAVER_OAUTH,
+  GOOGLE_OAUTH,
   type OAuthVerifierPort,
 } from './oauth/oauth.port';
 
@@ -12,23 +13,29 @@ export interface AuthResult {
   tokens: TokenPair;
 }
 
-/** Member authentication — social login only (Kakao/Naver). */
+export type SocialProvider = 'KAKAO' | 'NAVER' | 'GOOGLE';
+
+/** Member authentication — social login only (Kakao/Naver/Google). */
 @Injectable()
 export class AuthService {
+  private readonly verifiers: Record<SocialProvider, OAuthVerifierPort>;
+
   constructor(
     private readonly users: UsersService,
     private readonly tokens: TokenService,
-    @Inject(KAKAO_OAUTH) private readonly kakao: OAuthVerifierPort,
-    @Inject(NAVER_OAUTH) private readonly naver: OAuthVerifierPort,
-  ) {}
+    @Inject(KAKAO_OAUTH) kakao: OAuthVerifierPort,
+    @Inject(NAVER_OAUTH) naver: OAuthVerifierPort,
+    @Inject(GOOGLE_OAUTH) google: OAuthVerifierPort,
+  ) {
+    this.verifiers = { KAKAO: kakao, NAVER: naver, GOOGLE: google };
+  }
 
   /** Social login (auto-provisions the member on first login). */
   async loginWithOAuth(
-    provider: 'KAKAO' | 'NAVER',
+    provider: SocialProvider,
     accessToken: string,
   ): Promise<AuthResult> {
-    const verifier = provider === 'KAKAO' ? this.kakao : this.naver;
-    const profile = await verifier.verify(accessToken);
+    const profile = await this.verifiers[provider].verify(accessToken);
     const user = await this.users.provisionFromOAuth(profile);
     if (user.status === 'SUSPENDED') {
       throw new ForbiddenException('Account suspended');
