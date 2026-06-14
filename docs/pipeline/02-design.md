@@ -567,3 +567,123 @@ Build order suggestion: `platform` → `auth/users` → `geo` (+PoC §10) → `p
 6. **Staged consent + license scope (FR26, Q1, Q5):** legal-gated; do not let content reach contest/public before consent_state==4 and the (TBD) eligibility step.
 
 Design file: `/Users/afraca/Documents/Workspace/han-ddam/docs/pipeline/02-design.md`.
+
+---
+
+## 12. 추가 설계 — 게이미피케이션 · 이미지 · 컬렉션 · i18n (Figma 반영)
+
+> 현재 구현 상태 반영: 회원/관리자 분리, 소셜 3종(KAKAO/NAVER/GOOGLE), region(level: PROVINCE/DISTRICT)
+> + region_trans(언어별 이름). i18n는 **콘텐츠 테이블마다 `<table>_trans`** 패턴(admin·유저생성물 제외).
+
+### 12.1 확장형 점수 제도 (gamification)
+원칙: **규칙·가중치·뱃지는 데이터(행 추가), 획득은 이벤트 원장, 합계는 프로젝션.** 코드 배포 없이 메커닉 확장.
+```
+score_rule        id, action(CERT_PHOTO|CERT_QR|COLLECTION_DONE|REGION_DONE|
+                  REVIEW_WRITE|FIRST_VISIT|DAILY_STREAK|EVENT_*), base_points,
+                  base_exp, is_active, effective_from/to, priority
+score_multiplier  id, context(REGION|PLACE_RARITY|SEASON|EVENT|FIRST_TIME),
+                  ref_code?, value numeric, effective_from/to   -- 곱연산 stack
+score_event       id, user_id, action, source_type, source_id, base_points,
+                  applied_multiplier, awarded_points, awarded_exp, region_code,
+                  metadata jsonb, created_at                    -- SSOT 원장
+level_policy      level int PK, required_exp int
+user_stat         user_id PK, exp, level, total_points, visited_count …  -- 프로젝션
+badge             id, code, name, icon, criteria_type, criteria_value, is_active
+user_badge        (user_id, badge_id) PK, awarded_at
+```
+- **최종 점수 = base_points × ∏(적용 multiplier)** (지역가중치·장소희소도·시즌·이벤트 stack)
+- 점수(랭킹) / EXP(레벨) / 뱃지(성취)는 **독립 축** → 각각 확장
+- 랭킹/진행도/레벨은 `score_event` 합산 프로젝션 → 규칙 변경 시 재계산·감사 가능
+- **계산 위치 = `ScoringService`(단일)**: 여행지 점수 미리보기 `GET /api/scoring/places/:id` 와 인증 실제 적립이 **같은 계산** 사용(SSOT). place는 점수 미보유(고유 속성 `rarity_weight`만), 점수/가중치는 scoring 정책에서 동적 계산(시즌·이벤트 반영).
+
+### 12.2 이미지 (원본 + 리사이즈)
+```
+image  id, owner_user_id, kind(CERT|REVIEW|COMPOSITION),
+       s3_key_original, s3_key_resized, width, height,
+       is_public default false, moderation_status, created_at
+```
+- 프론트가 **원본 + 리사이즈본 2개**를 제출(또는 서버 sharp로 리사이즈 생성).
+- **원본** = 보관·공모전·공식자산. **리사이즈** = 목록/피드/타인 공개(저용량, 인앱 공개).
+- 공개 노출은 moderation PASS 후 `is_public=true`, 그리고 **리사이즈본**을 서빙.
+
+### 12.3 컬렉션(도감) — 테마/지역 + 순서 (M:N)
+```
+collection        id, source(CURATED|USER), owner_user_id?, type(THEME|REGION),
+                  region_code?(REGION), is_ordered, visibility, like_count, created_at
+collection_trans  (collection_id, locale) PK, title, description        -- i18n
+collection_slot   (collection_id, place_id) PK, seq int                 -- M:N + 순서
+collection_tag    (collection_id, tag)                                  -- 테마 태그
+```
+- **순서**: `collection_slot.seq` — 컬렉션 내 장소 정렬(M:N 정션에 위치) ✅
+- **테마/지역**: 슬롯이 아니라 **컬렉션 단위 속성**(`type` + `collection_tag` / `region_code`).
+- 도감 탭: **지역별**(type=REGION 또는 region 진행도 카드) / **테마별**(type=THEME·tag) / **최근수집**.
+- 진행도 N/M = `user_collection_progress`(채운 슬롯/전체 슬롯), 지역 %는 별개 축.
+
+### 12.4 약관 (i18n)
+```
+agreement        id, type(TOS|PRIVACY|CONTENT_LICENSE|OFFICIAL_CHANNEL|CONTEST),
+                 effective_from        -- 타입별 최신 1건이 current (버전관리 없음)
+agreement_trans  (agreement_id, locale) PK, title, body
+user_agreement   id, user_id, agreement_id, accepted_at, ip
+```
+- 로딩(가입) 시 TOS/PRIVACY, 인증 시 CONTENT_LICENSE(저작·사용) 동의.
+
+### 12.5 i18n `_trans` 테이블 목록
+**규칙**: 데이터로 늘어나는 공식 콘텐츠 → DB `_trans`. 고정 UI 문구 → 프론트 i18n. 유저 생성물 → 원문(번역 X).
+
+| 본체 | `_trans` | 번역 필드 | 상태 |
+|---|---|---|---|
+| region | `region_trans` | name | ✅ 구현 |
+| place | `place_trans` | name, address, description, mission | 📐 |
+| place_composition | `place_composition_trans` | title, description | 📐 |
+| festival | `festival_trans` | name, description, address | 📐 |
+| course | `course_trans` | name, description | 📐 |
+| collection | `collection_trans` | title, description (UGC는 작성자 언어 1행) | 📐 |
+| challenge | `challenge_trans` | title, description | 📐 |
+| badge | `badge_trans` | name, description | 📐 |
+| agreement | `agreement_trans` | title, body | 📐 |
+
+**`_trans` 없음**: users·admin·oauth·refresh·score_event·score_rule·user_stat(내부/원장),
+certification.caption·review 본문·user.display_name(유저 생성물), 키워드 태그·레벨 칭호 등 고정 UI(프론트 i18n).
+
+---
+
+## 13. 관리자(백오피스) 관리 범위
+
+`admin_role`(SUPER_ADMIN/ADMIN/MODERATOR/CURATOR)로 게이트. **모든 쓰기 → `audit_log`**.
+
+| 도메인 | 관리 내용 | 엔드포인트(예) | 권한 | 상태 |
+|---|---|---|---|---|
+| 회원 | 목록/상세/정지·해제, 활동·점수 이력 | `/admin/members` | ADMIN+ | ✅ |
+| 관리자 | 목록/생성/역할·활성 | `/admin/admins` | SUPER_ADMIN | ✅ |
+| 여행지(place) | CRUD, i18n(place_trans), 태그, base_points·rarity, 구도추천 등록 | `/admin/places`, `/admin/places/:id/compositions` | ADMIN+ | 📐 |
+| TourAPI 동기화 | 동기화 트리거, 매처 ambiguous 검수 큐 | `/admin/ingestion` | ADMIN+ | 📐 |
+| 지역(region) | 인구감소 플래그, `region_weight`(가중치), 도감 잠금/해금, 외국어명 보정 | `/admin/regions` | ADMIN+ | 📐 |
+| 점수 정책 | score_rule, score_multiplier(시즌/이벤트), level_policy, badge | `/admin/scoring/{rules,multipliers,levels,badges}` | SUPER_ADMIN | 📐 |
+| 컬렉션(도감) | 큐레이션 생성/편집(슬롯·순서·테마), UGC 모더레이션 | `/admin/collections` | ADMIN+ | 📐 |
+| 챌린지 | 생성/편집(기간·조건·보상), 시즌 검수 | `/admin/challenges` | ADMIN+ | 📐 |
+| 인증 모더레이션 | 사전 NSFW/신고 큐, 수동 검증(랜드마크 애매), 반려 | `/admin/moderation`, `/admin/certifications` | ADMIN+ | 📐 |
+| 신고 처리 | 이미지·리뷰·컬렉션·인증 신고 큐 | `/admin/reports` | ADMIN+ | 📐 |
+| 공모전 | 생성/기간, 출품 검수, 명예의전당 선정, 라이선스 확인 | `/admin/contests` | ADMIN+ | 📐 |
+| 약관 | 본문 작성/게시(i18n), 동의 현황 (버전관리 없음) | `/admin/agreements` | SUPER_ADMIN | 📐 |
+| 통계/대시보드 | 도감완성률·인증통과율·AI큐 적체·DAU·지역활성·가중치 정책 효과 | `/admin/stats` | ADMIN+ | 📐 |
+
+**역할(2종)**: **SUPER_ADMIN**=관리자·점수정책·약관·시스템 전체 / **ADMIN**=그 외 운영 전반(회원·여행지·지역·컬렉션·챌린지·모더레이션·신고·공모전·통계). MODERATOR/CURATOR 미사용.
+
+> 제외(현 단계): 약관 버전관리 · 감사로그 · 태그/카테고리 마스터 · 알림(기획 미정).
+
+---
+
+## 14. 페이지네이션 컨벤션
+
+| 용도 | 방식 | envelope |
+|---|---|---|
+| **앱 피드/목록** (무한스크롤) | **cursor(keyset)** | `?cursor=<opaque>&limit=` → `{items, nextCursor}` |
+| **관리자 목록** | **offset** | `?page=&limit=` → `{items, total, page, limit}` |
+| **고정 소량** (시·도 17 등) | 페이지네이션 없음 | 전체 반환 |
+
+- **cursor 구현**: 안정 정렬 `ORDER BY created_at DESC, id DESC` + `WHERE (created_at,id) < cursor` + `LIMIT n+1`(다음 존재 판단). cursor = `base64(정렬키|id)` (opaque). Drizzle은 keyset where(`lt`/튜플) 사용.
+- **cursor 적용**: `me/dogam/themes`·`me/dogam/recent`, `places/:id/certifications`, `rankings`(리더보드), 추천 피드.
+- **offset 적용**: `admin/members`, `admin/admins`.
+- **무페이지**: `me/dogam/regions`(시·도), `me/progress/sido`.
+- 이유: 무한스크롤은 삽입 시 drift 없고 대용량 OFFSET 회피(keyset). 관리자 GUI는 페이지 번호·전체건수 필요(offset).

@@ -223,3 +223,51 @@ The 3–4 hardest design questions this plan implies for the Architect:
 2. **Single source of truth for scoring with consistent policy weighting.** One authoritative scoring path feeding cert score, both progress axes, challenge progress, rankings, recommendations, and notification curation — with the declining-population weight injected from a data-driven policy and idempotent under retries (Risks #4, #5).
 3. **Trustworthy certification pipeline.** Server-side device-GPS-as-primary verification + PostGIS proximity/containment + AI landmark gate (required on contest path) + proactive image moderation before public exposure, as one coherent, auditable flow (Risks #2, #3).
 4. **Collections as hybrid social objects + dual progress.** Unified model for curated (ownerless) and UGC (owned) collections that powers N/M completion, likes, trending/newly-added feeds, and coexists with the independent region-% axis.
+
+---
+
+## 11. Figma 상세 화면 반영 (요구사항 보강)
+
+전체 화면 시안(홈/지도/도 상세/여행지 상세/인증/도감/마이/랭킹/로그인)에서 확인된 상세 요구사항.
+
+### A. 점수 · 레벨 · 랭킹 (게임화 상세)
+- **인증 1건당 점수**: 기본 점수(예: **+15**) × **지역 가중치(인구감소지역 ×1.5)** → 화면에 명시 표시.
+- **레벨/EXP 시스템**: "여행수집가 **Lv.33**", EXP 2,450/3,200 — **점수와 별개의 레벨 곡선** 필요(누적 점수→레벨 환산 or 별도 EXP).
+- **랭킹**: 전국 순위(예: **127위 / 15,284명**) + **percentile(전국 상위 1%)** + 리더보드(point 기준) + **칭호/뱃지**("지도파미", "여행마스터" 등).
+- → 설계 영향: `user_score`(점수 SSOT)와 `user_level`(EXP/레벨)을 구분, `ranking`/`badge` 모델 추가.
+
+### B. 진행도 3계층
+- **전국** → **시·도(집계)** → **시·군·구**. 전체 지도에 시·도별 %(서울·경기 80% 등) + 누적 카운트.
+- **도 상세**: 도 진행도(70%), 수집현황(15/21곳), 여행지 목록(**방문완료/방문예정** 뱃지), filter(전체/방문완료/방문예정).
+- **도감**: **지역별 / 테마별 / 최근수집** 탭, 전국 수집현황(102/161), 지역 카드 %+N/M, 일부 지역 **잠김(locked)**(예: 세종) → 잠금/해금 조건 정의 필요.
+- → 진행도는 시·군·구 기준 집계가 시·도로 롤업. 도감=지역별+테마별(컬렉션).
+
+### C. 여행지(spot) 상세
+- **평점**(별점, 예: 4.8), **태그**, 지역 가중치(×1.5), 획득 점수.
+- **여행 인증 미션 + 구도 추천**(예: "정자+동해 바다", "정자+바위+파도") — **초기엔 큐레이션 데이터, 데이터 쌓이면 AI 고도화**(시안 주석).
+- **다른 여행객의 인증 사진** 갤러리.
+- → 설계 영향: spot에 평점 집계, `recommended_composition`(구도 추천), 인증 미션 데이터.
+
+### D. 인증 플로우 상세
+- 촬영/선택 → **장소 위치 확인(GPS)** + **사진 구도 확인(AI 보조)** → **여행 한 줄 기록(caption)** → **공개 설정(나만 보기 / 전체 공개)** → 점수 획득.
+- 인증 완료 → 도감 수집 + 도 진행도 갱신(70%→74%) + 점수 +15.
+- → `certification`에 `caption`, `visibility(PRIVATE|PUBLIC)`, 구도확인 결과 필드 추가.
+
+### E. ⚠️ 소셜 로그인 provider 불일치 (결정 필요)
+- **Figma 로그인 화면**: **카카오 + Google** (네이버 없음).
+- **현재 구현**: 카카오 + **네이버**.
+- → **확정 필요**: 카카오 + 네이버 + 구글(셋 다)? 아니면 카카오 + 구글? `auth_provider` enum/어댑터에 영향.
+
+### F. 다국어
+- 시안 주석 "유저(영어/일본/중국)" → 인바운드 다국어 확정. (i18n `_trans` 테이블 패턴으로 이미 채택)
+
+### G. 디자인
+- 테마 컬러(녹색 계열) 등은 프론트 영역.
+
+### 보강으로 새로 생기는 결정/모델
+1. 소셜 provider 목록 확정 (E) — **현재 코드와 충돌**, 우선 처리 권장.
+2. EXP/레벨 시스템(점수와 별개).
+3. 칭호/뱃지 시스템.
+4. spot 평점 + 구도추천 + 인증미션.
+5. 인증 caption + visibility.
+6. 지역 잠금(locked) 조건.
