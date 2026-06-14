@@ -62,7 +62,8 @@ http://localhost:3000/api-docs
 
 ### 보안
 
-- **helmet**: 보안 HTTP 헤더 자동 적용
+- **helmet**: 보안 HTTP 응답 헤더 적용 (CSP, `X-Content-Type-Options`, `X-Frame-Options`,
+  `Strict-Transport-Security` 등) 및 `X-Powered-By` 노출 제거
 - **CORS**: `.env`의 `CORS_ORIGINS`로 허용 출처 제어 (`*` = 전체)
 - **Rate limit**: 기본 100req/분, 인증 엔드포인트는 10req/분 (무차별 대입 방지)
 - **JWT** 인증 + 역할 기반 접근 제어, 관리자 엔드포인트는 `x-admin-key` 헤더
