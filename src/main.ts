@@ -41,6 +41,21 @@ async function bootstrap() {
       .setVersion('0.1')
       .addBearerAuth() // JWT access token
       .addApiKey({ type: 'apiKey', name: 'x-admin-key', in: 'header' }, 'admin-key')
+      // context headers — show as inputs on every endpoint in Swagger UI
+      .addGlobalParameters(
+        {
+          name: 'Accept-Language',
+          in: 'header',
+          required: false,
+          schema: { type: 'string', enum: ['ko', 'en', 'ja', 'zh'], default: 'ko' },
+        },
+        {
+          name: 'X-Client',
+          in: 'header',
+          required: false,
+          schema: { type: 'string', enum: ['ios', 'android', 'admin'] },
+        },
+      )
       .build();
     SwaggerModule.setup('api-docs', app, SwaggerModule.createDocument(app, doc));
   }

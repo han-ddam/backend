@@ -1,11 +1,11 @@
 /** Per-request context derived from client headers. */
 export type Locale = 'KO' | 'EN' | 'JA' | 'ZH';
-export type Client = 'IOS' | 'ANDROID' | 'WEB' | 'ADMIN' | 'UNKNOWN';
+export type Client = 'IOS' | 'ANDROID' | 'ADMIN' | 'UNKNOWN';
 
 export interface RequestContext {
   /** From `Accept-Language` (KO/EN/JA/ZH), defaults to KO. */
   locale: Locale;
-  /** From `X-Client` (ios/android/web/admin), defaults to UNKNOWN. */
+  /** From `X-Client` (ios/android/admin) — native only, defaults to UNKNOWN. */
   client: Client;
 }
 
@@ -13,7 +13,6 @@ const LOCALES: Record<string, Locale> = { ko: 'KO', en: 'EN', ja: 'JA', zh: 'ZH'
 const CLIENTS: Record<string, Client> = {
   ios: 'IOS',
   android: 'ANDROID',
-  web: 'WEB',
   admin: 'ADMIN',
 };
 

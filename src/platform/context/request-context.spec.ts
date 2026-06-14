@@ -21,7 +21,8 @@ describe('buildRequestContext', () => {
     expect(buildRequestContext({ 'x-client': 'admin' }).client).toBe('ADMIN');
   });
 
-  it('falls back to UNKNOWN for an unrecognized client', () => {
+  it('falls back to UNKNOWN for an unrecognized client (e.g. web, removed)', () => {
+    expect(buildRequestContext({ 'x-client': 'web' }).client).toBe('UNKNOWN');
     expect(buildRequestContext({ 'x-client': 'desktop' }).client).toBe('UNKNOWN');
   });
 });
