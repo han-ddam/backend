@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PlatformModule } from '@platform/platform.module';
+import { RequestContextMiddleware } from '@platform/context/request-context.middleware';
 import { HealthModule } from '@modules/health/health.module';
 import { GeoModule } from '@modules/geo/geo.module';
 import { UsersModule } from '@modules/users/users.module';
@@ -26,4 +27,8 @@ import { AdminModule } from '@modules/admin/admin.module';
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestContextMiddleware).forRoutes('*');
+  }
+}
