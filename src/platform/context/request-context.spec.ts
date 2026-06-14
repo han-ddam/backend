@@ -1,8 +1,8 @@
 import { buildRequestContext } from './request-context';
 
 describe('buildRequestContext', () => {
-  it('defaults to KO locale and UNKNOWN client', () => {
-    expect(buildRequestContext({})).toEqual({ locale: 'KO', client: 'UNKNOWN' });
+  it('defaults to KO locale', () => {
+    expect(buildRequestContext({})).toEqual({ locale: 'KO' });
   });
 
   it('parses Accept-Language with region and quality values', () => {
@@ -13,16 +13,5 @@ describe('buildRequestContext', () => {
 
   it('falls back to KO for an unsupported language', () => {
     expect(buildRequestContext({ 'accept-language': 'fr' }).locale).toBe('KO');
-  });
-
-  it('parses X-Client case-insensitively', () => {
-    expect(buildRequestContext({ 'x-client': 'iOS' }).client).toBe('IOS');
-    expect(buildRequestContext({ 'x-client': 'ANDROID' }).client).toBe('ANDROID');
-    expect(buildRequestContext({ 'x-client': 'admin' }).client).toBe('ADMIN');
-  });
-
-  it('falls back to UNKNOWN for an unrecognized client (e.g. web, removed)', () => {
-    expect(buildRequestContext({ 'x-client': 'web' }).client).toBe('UNKNOWN');
-    expect(buildRequestContext({ 'x-client': 'desktop' }).client).toBe('UNKNOWN');
   });
 });

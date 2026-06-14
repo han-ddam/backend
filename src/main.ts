@@ -39,20 +39,18 @@ async function bootstrap() {
       .setTitle('한땀 API')
       .setDescription('한땀 백엔드 API 문서')
       .setVersion('0.1')
-      .addBearerAuth() // JWT access token
-      .addApiKey({ type: 'apiKey', name: 'x-admin-key', in: 'header' }, 'admin-key')
-      // context headers exposed in the Authorize dialog (set once, applied to all requests)
+      .addBearerAuth() // JWT access token (member & admin)
+      // Accept-Language exposed in the Authorize dialog (set once, applied to all requests)
       .addApiKey(
         { type: 'apiKey', name: 'Accept-Language', in: 'header' },
         'accept-language',
       )
-      .addApiKey({ type: 'apiKey', name: 'X-Client', in: 'header' }, 'x-client')
       .build();
 
     const document = SwaggerModule.createDocument(app, doc);
-    // attach the two context headers to every operation so a value set once in
+    // attach Accept-Language to every operation so a value set once in
     // the Authorize dialog is sent on all requests
-    const contextSecurity = { 'accept-language': [], 'x-client': [] };
+    const contextSecurity = { 'accept-language': [] };
     for (const pathItem of Object.values(document.paths)) {
       for (const method of ['get', 'post', 'put', 'patch', 'delete'] as const) {
         const op = pathItem[method];
