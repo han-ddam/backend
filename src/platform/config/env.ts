@@ -16,6 +16,9 @@ export const envSchema = z.object({
   JWT_ACCESS_TTL: z.coerce.number().int().positive().default(900),
   JWT_REFRESH_TTL: z.coerce.number().int().positive().default(1209600),
 
+  // Secret for the internal admin-user creation endpoint (Postman-only).
+  ADMIN_API_KEY: z.string().min(16),
+
   PROXIMITY_TOLERANCE_M: z.coerce.number().positive().default(150),
 });
 
