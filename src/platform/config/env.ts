@@ -19,6 +19,9 @@ export const envSchema = z.object({
   // Secret for the internal admin-user creation endpoint (Postman-only).
   ADMIN_API_KEY: z.string().min(16),
 
+  // CORS allowlist: '*' (reflect any origin) or comma-separated origins.
+  CORS_ORIGINS: z.string().default('*'),
+
   PROXIMITY_TOLERANCE_M: z.coerce.number().positive().default(150),
 });
 

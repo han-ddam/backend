@@ -1,9 +1,11 @@
 import { Controller, Get, Inject } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { sql } from 'drizzle-orm';
 import { Redis } from 'ioredis';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import { REDIS } from '@platform/redis/redis.module';
 
+@ApiTags('health')
 @Controller('health')
 export class HealthController {
   constructor(
