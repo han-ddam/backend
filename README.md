@@ -36,7 +36,9 @@ pnpm infra:up
 # 4. DB 마이그레이션 적용 — 테이블/확장/인덱스 생성
 pnpm db:migrate
 
-# 5. 서버 실행
+# 5. 초기 데이터 시드 (로컬 테스트용) — 아래 "초기 데이터 시드" 참고
+
+# 6. 서버 실행
 pnpm start:dev        # API 서버 (개발 모드, 코드 변경 시 자동 재시작)
 pnpm worker           # (별도 터미널) 백그라운드 작업 워커
 ```
@@ -49,6 +51,26 @@ curl http://localhost:3000/api/health
 ```
 
 > Docker Desktop이 **실행 중**이어야 `pnpm infra:up` 이 동작합니다.
+
+### 초기 데이터 시드 (로컬 테스트용)
+
+마이그레이션 직후 DB는 비어 있습니다. 로컬에서 기능을 테스트하려면 아래 두 가지를 넣어두면 좋습니다.
+
+```bash
+# (1) 최초 관리자 계정 — 관리자 로그인/회원·관리자 관리 테스트용
+pnpm seed:admin <이메일> <비밀번호8자+> <이름>
+#   예: pnpm seed:admin admin@handdam.dev Admin1234 관리자
+#   → POST /api/admin/auth/login 으로 로그인해 토큰 발급
+
+# (2) 지역(시·도/시·군·구) — 지도/도감의 지역 단위
+pnpm seed:regions
+#   → TourAPI에서 17개 시·도 + 약 229개 시·군·구를 region 테이블에 적재
+#   ⚠️ .env 에 TOURAPI_KEY 필요 (data.go.kr "한국관광공사_국문 관광정보 서비스_GW" 활용신청 후 Encoding 인증키)
+#   키가 KorService1용이면 .env 에 TOURAPI_AREACODE_URL 로 엔드포인트 교체 (env.example 참고)
+```
+
+> 두 시드 모두 **재실행해도 안전**합니다(중복 체크/upsert). admin 시드는 같은 이메일이면 막힙니다.
+> 시드 확인: `pnpm db:studio` 또는 DB GUI에서 `admin` / `region` 테이블 조회.
 
 ### API 문서 (Swagger)
 

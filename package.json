@@ -24,6 +24,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "seed:admin": "ts-node -r tsconfig-paths/register scripts/seed-admin.ts",
+    "seed:regions": "ts-node -r tsconfig-paths/register scripts/seed-regions.ts",
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down"
   },
