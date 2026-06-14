@@ -35,8 +35,13 @@
 | 컬렉션 | M:N `collection_slot.seq`(순서), 테마=컬렉션 속성 | 도감 지역별/테마별 + 정렬 |
 | 약관 | i18n, 로딩(TOS/개인정보)·인증(콘텐츠 라이선스) 2시점 | 창작자 저작권 보유 + 출처표기 라이선스 |
 | 인증 신뢰 | 서버기록 디바이스GPS 1차, EXIF 불신, 구도매칭 체크 | 위변조 방지 |
-| 데이터 출처 | region=시드(TourAPI areaCode), spot=TourAPI 동기화 | region은 정적, spot은 주기 동기화 |
+| 데이터 출처 | region=시드(TourAPI areaCode), place=TourAPI **관광지(type 12)만** 동기화 | |
+| 진행도 분모 | scope별 **등록 place 수** (전국 161 / 시·도 21 등) | 등록 place = 도감 대상 |
+| 테마 | `collection.theme_tags text[]` (배열) | place는 여러 컬렉션 소속 |
+| place 점수값 | `base_points`·`rarity_weight` **어드민 수동** | |
+| 인증 검증 정책 | **`cert_policy` 별도 테이블**(GPS 허용오차·구도매칭) | 데이터 기반 |
 | 마이그레이션 | 대화형 회피 위해 필요시 **수기 작성** + snapshot 동기화 | drizzle-kit 대화형 프롬프트 한계 |
+| 페이지네이션 | 앱 피드=cursor / 관리자=offset | 무한스크롤 drift 방지 |
 | Figma 다이어그램 | MCP 미사용(유료) → **Mermaid/SVG 복붙·import** | |
 
 ## 4. 진행 로드맵 + 현재 상태
