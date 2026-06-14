@@ -13,7 +13,7 @@ export class CreateAdminDto extends createZodDto(
     email: z.string().email(),
     password: z.string().min(8),
     name: z.string().min(1),
-    role: z.enum(['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'CURATOR']).optional(),
+    role: z.enum(['SUPER_ADMIN', 'ADMIN']).optional(),
   }),
 ) {}
 
@@ -38,7 +38,7 @@ export class UpdateAdminDto extends createZodDto(
   z
     .object({
       name: z.string().min(1).optional(),
-      role: z.enum(['SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'CURATOR']).optional(),
+      role: z.enum(['SUPER_ADMIN', 'ADMIN']).optional(),
       isActive: z.boolean().optional(),
     })
     .refine((v) => Object.keys(v).length > 0, {

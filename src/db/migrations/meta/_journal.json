@@ -43,6 +43,13 @@
       "when": 1781700000000,
       "tag": "0005_region_level_region_trans_google",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781720000000,
+      "tag": "0006_admin_role_two",
+      "breakpoints": true
     }
   ]
 }

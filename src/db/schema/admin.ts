@@ -7,12 +7,7 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 
-export const adminRoleEnum = pgEnum('admin_role', [
-  'SUPER_ADMIN',
-  'ADMIN',
-  'MODERATOR',
-  'CURATOR',
-]);
+export const adminRoleEnum = pgEnum('admin_role', ['SUPER_ADMIN', 'ADMIN']);
 
 /** Back-office accounts — fully separate from app members (`users`). */
 export const admins = pgTable('admin', {

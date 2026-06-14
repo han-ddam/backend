@@ -72,10 +72,10 @@ describe('AdminService', () => {
 
   describe('updateAdmin', () => {
     it('updates and returns the profile', async () => {
-      repo.update.mockResolvedValue({ ...admin, role: 'MODERATOR' });
-      const result = await service.updateAdmin('a1', { role: 'MODERATOR' });
-      expect(repo.update).toHaveBeenCalledWith('a1', { role: 'MODERATOR' });
-      expect(result.role).toBe('MODERATOR');
+      repo.update.mockResolvedValue({ ...admin, role: 'SUPER_ADMIN' });
+      const result = await service.updateAdmin('a1', { role: 'SUPER_ADMIN' });
+      expect(repo.update).toHaveBeenCalledWith('a1', { role: 'SUPER_ADMIN' });
+      expect(result.role).toBe('SUPER_ADMIN');
     });
 
     it('throws when the admin is missing', async () => {
