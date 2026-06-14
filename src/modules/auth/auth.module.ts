@@ -6,13 +6,12 @@ import { UsersModule } from '@modules/users/users.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { TokenService } from './tokens/token.service';
-import { LoginThrottleService } from './login-throttle.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { RolesGuard } from './guards/roles.guard';
 import { KAKAO_OAUTH, NAVER_OAUTH } from './oauth/oauth.port';
 import { KakaoOAuthAdapter } from './oauth/kakao.adapter';
 import { NaverOAuthAdapter } from './oauth/naver.adapter';
 
+/** Member authentication (social login). */
 @Module({
   imports: [
     UsersModule,
@@ -33,12 +32,10 @@ import { NaverOAuthAdapter } from './oauth/naver.adapter';
   providers: [
     AuthService,
     TokenService,
-    LoginThrottleService,
     JwtAuthGuard,
-    RolesGuard,
     { provide: KAKAO_OAUTH, useClass: KakaoOAuthAdapter },
     { provide: NAVER_OAUTH, useClass: NaverOAuthAdapter },
   ],
-  exports: [JwtAuthGuard, RolesGuard, JwtModule],
+  exports: [JwtAuthGuard],
 })
 export class AuthModule {}

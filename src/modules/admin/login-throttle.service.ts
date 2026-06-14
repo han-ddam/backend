@@ -8,7 +8,7 @@ import type { Redis } from 'ioredis';
 import { REDIS } from '@platform/redis/redis.module';
 
 /**
- * Per-email brute-force protection for password login: counts consecutive
+ * Per-email brute-force protection for admin password login: counts consecutive
  * failures in Redis and locks the account for a window once the threshold is hit.
  */
 @Injectable()
@@ -19,7 +19,7 @@ export class LoginThrottleService {
   constructor(@Inject(REDIS) private readonly redis: Redis) {}
 
   private key(email: string): string {
-    return `login:fail:${email.toLowerCase()}`;
+    return `admin:login:fail:${email.toLowerCase()}`;
   }
 
   async assertNotLocked(email: string): Promise<void> {

@@ -15,8 +15,6 @@ export interface CreateUserInput {
   handle: string;
   displayName: string;
   email?: string | null;
-  passwordHash?: string | null;
-  role?: User['role'];
 }
 
 @Injectable()
@@ -25,14 +23,6 @@ export class UsersRepository {
 
   async findById(id: string): Promise<User | undefined> {
     const [row] = await this.db.select().from(users).where(eq(users.id, id));
-    return row;
-  }
-
-  async findByEmail(email: string): Promise<User | undefined> {
-    const [row] = await this.db
-      .select()
-      .from(users)
-      .where(eq(users.email, email));
     return row;
   }
 
@@ -62,22 +52,7 @@ export class UsersRepository {
     return row?.user;
   }
 
-  async createUser(input: CreateUserInput): Promise<User> {
-    const [row] = await this.db
-      .insert(users)
-      .values({
-        id: input.id,
-        handle: input.handle,
-        displayName: input.displayName,
-        email: input.email ?? null,
-        passwordHash: input.passwordHash ?? null,
-        role: input.role ?? 'USER',
-      })
-      .returning();
-    return row;
-  }
-
-  /** Create a user and its social identity atomically. */
+  /** Create a member and its social identity atomically. */
   async createUserWithOAuth(
     input: CreateUserInput,
     oauth: { id: string; provider: Provider; providerUserId: string },
@@ -90,7 +65,6 @@ export class UsersRepository {
           handle: input.handle,
           displayName: input.displayName,
           email: input.email ?? null,
-          role: input.role ?? 'USER',
         })
         .returning();
       await tx.insert(oauthIdentity).values({

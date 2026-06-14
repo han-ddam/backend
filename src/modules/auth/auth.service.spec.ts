@@ -1,28 +1,20 @@
-import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
-
-jest.mock('@node-rs/argon2', () => ({ verify: jest.fn() }));
-import { verify } from '@node-rs/argon2';
-
-const verifyMock = verify as jest.Mock;
 
 describe('AuthService', () => {
   let users: any;
   let tokens: any;
-  let loginThrottle: any;
   let kakao: any;
   let naver: any;
   let service: AuthService;
 
-  const user = { id: 'u1', role: 'USER', passwordHash: 'hash' };
-  const publicProfile = { id: 'u1', handle: 'user_x', displayName: '길동', role: 'USER' };
+  const user = { id: 'u1' };
+  const publicProfile = { id: 'u1', handle: 'user_x', displayName: '길동' };
   const tokenPair = { accessToken: 'a', refreshToken: 'r' };
 
   beforeEach(() => {
     users = {
       provisionFromOAuth: jest.fn().mockResolvedValue(user),
       toPublicProfile: jest.fn().mockReturnValue(publicProfile),
-      findByEmail: jest.fn(),
       getById: jest.fn().mockResolvedValue(user),
     };
     tokens = {
@@ -30,15 +22,9 @@ describe('AuthService', () => {
       consumeRefreshToken: jest.fn().mockResolvedValue('u1'),
       revoke: jest.fn().mockResolvedValue(undefined),
     };
-    loginThrottle = {
-      assertNotLocked: jest.fn().mockResolvedValue(undefined),
-      recordFailure: jest.fn().mockResolvedValue(undefined),
-      reset: jest.fn().mockResolvedValue(undefined),
-    };
     kakao = { verify: jest.fn() };
     naver = { verify: jest.fn() };
-    service = new AuthService(users, tokens, loginThrottle, kakao, naver);
-    verifyMock.mockReset();
+    service = new AuthService(users, tokens, kakao, naver);
   });
 
   describe('loginWithOAuth', () => {
@@ -62,60 +48,6 @@ describe('AuthService', () => {
 
       expect(naver.verify).toHaveBeenCalledWith('naver-token');
       expect(kakao.verify).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('loginWithEmail', () => {
-    it('issues tokens on valid credentials and resets the failure counter', async () => {
-      users.findByEmail.mockResolvedValue(user);
-      verifyMock.mockResolvedValue(true);
-
-      const result = await service.loginWithEmail('admin@x.com', 'pw');
-
-      expect(loginThrottle.assertNotLocked).toHaveBeenCalledWith('admin@x.com');
-      expect(verifyMock).toHaveBeenCalledWith('hash', 'pw');
-      expect(loginThrottle.reset).toHaveBeenCalledWith('admin@x.com');
-      expect(tokens.issueTokens).toHaveBeenCalledWith(user);
-      expect(result.tokens).toEqual(tokenPair);
-    });
-
-    it('records a failure on a wrong password', async () => {
-      users.findByEmail.mockResolvedValue(user);
-      verifyMock.mockResolvedValue(false);
-      await expect(service.loginWithEmail('admin@x.com', 'bad')).rejects.toThrow(
-        UnauthorizedException,
-      );
-      expect(loginThrottle.recordFailure).toHaveBeenCalledWith('admin@x.com');
-    });
-
-    it('rejects immediately when the account is locked', async () => {
-      loginThrottle.assertNotLocked.mockRejectedValue(new Error('locked'));
-      await expect(service.loginWithEmail('admin@x.com', 'pw')).rejects.toThrow();
-      expect(users.findByEmail).not.toHaveBeenCalled();
-    });
-
-    it('rejects when the user does not exist', async () => {
-      users.findByEmail.mockResolvedValue(undefined);
-      await expect(service.loginWithEmail('x@x.com', 'pw')).rejects.toThrow(
-        UnauthorizedException,
-      );
-      expect(tokens.issueTokens).not.toHaveBeenCalled();
-    });
-
-    it('rejects a social-only user (no password hash)', async () => {
-      users.findByEmail.mockResolvedValue({ id: 'u2', role: 'USER', passwordHash: null });
-      await expect(service.loginWithEmail('x@x.com', 'pw')).rejects.toThrow(
-        UnauthorizedException,
-      );
-      expect(verifyMock).not.toHaveBeenCalled();
-    });
-
-    it('rejects a wrong password', async () => {
-      users.findByEmail.mockResolvedValue(user);
-      verifyMock.mockResolvedValue(false);
-      await expect(service.loginWithEmail('admin@x.com', 'bad')).rejects.toThrow(
-        UnauthorizedException,
-      );
     });
   });
 

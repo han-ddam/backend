@@ -6,11 +6,11 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
-import type { AuthUser, JwtPayload } from '../auth.types';
+import type { AdminJwtPayload, CurrentAdminInfo } from '../admin.types';
 
-/** Verifies the Bearer access token and attaches `req.user`. */
+/** Verifies the admin Bearer token (must carry `typ: 'admin'`). */
 @Injectable()
-export class JwtAuthGuard implements CanActivate {
+export class AdminJwtGuard implements CanActivate {
   constructor(private readonly jwt: JwtService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -20,9 +20,17 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Missing bearer token');
     }
     try {
-      const payload = await this.jwt.verifyAsync<JwtPayload>(header.slice(7));
-      const user: AuthUser = { userId: payload.sub };
-      (req as Request & { user: AuthUser }).user = user;
+      const payload = await this.jwt.verifyAsync<AdminJwtPayload>(
+        header.slice(7),
+      );
+      if (payload.typ !== 'admin') {
+        throw new UnauthorizedException('Not an admin token');
+      }
+      const admin: CurrentAdminInfo = {
+        adminId: payload.sub,
+        role: payload.role,
+      };
+      (req as Request & { admin: CurrentAdminInfo }).admin = admin;
       return true;
     } catch {
       throw new UnauthorizedException('Invalid or expired token');

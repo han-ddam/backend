@@ -1,11 +1,40 @@
 import { Module } from '@nestjs/common';
-import { UsersModule } from '@modules/users/users.module';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import type { Env } from '@platform/config/env';
+import { AdminRepository } from './admin.repository';
+import { AdminService } from './admin.service';
+import { AdminAuthService } from './admin-auth.service';
+import { AdminTokenService } from './tokens/admin-token.service';
+import { LoginThrottleService } from './login-throttle.service';
+import { AdminAuthController } from './admin-auth.controller';
 import { AdminController } from './admin.controller';
-import { AdminKeyGuard } from './guards/admin-key.guard';
+import { AdminJwtGuard } from './guards/admin-jwt.guard';
+import { AdminRolesGuard } from './guards/admin-roles.guard';
 
 @Module({
-  imports: [UsersModule],
-  controllers: [AdminController],
-  providers: [AdminKeyGuard],
+  imports: [
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => ({
+        secret: config.get('JWT_ACCESS_SECRET', { infer: true }),
+        signOptions: {
+          expiresIn: config.get('JWT_ACCESS_TTL', { infer: true }),
+          algorithm: 'HS256',
+        },
+        verifyOptions: { algorithms: ['HS256'] },
+      }),
+    }),
+  ],
+  controllers: [AdminAuthController, AdminController],
+  providers: [
+    AdminRepository,
+    AdminService,
+    AdminAuthService,
+    AdminTokenService,
+    LoginThrottleService,
+    AdminJwtGuard,
+    AdminRolesGuard,
+  ],
 })
 export class AdminModule {}

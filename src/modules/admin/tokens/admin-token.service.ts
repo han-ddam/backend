@@ -7,7 +7,7 @@ import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import { ClockService } from '@platform/clock/clock.service';
 import { IdService } from '@platform/id/id.service';
 import type { Env } from '@platform/config/env';
-import { refreshTokens, type User } from '@db/schema';
+import { adminRefreshTokens, type Admin } from '@db/schema';
 
 export interface TokenPair {
   accessToken: string;
@@ -15,13 +15,11 @@ export interface TokenPair {
 }
 
 /**
- * Issues short-lived JWT access tokens and opaque, single-use refresh tokens.
- * Refresh tokens are stored only as a SHA-256 hash; the raw value is returned
- * to the client once and never persisted. Rotation/role lookup is orchestrated
- * by AuthService — this service only mints, validates, and revokes.
+ * Admin access + refresh tokens — separate table and a `typ: 'admin'` claim so
+ * member and admin tokens can never be confused.
  */
 @Injectable()
-export class TokenService {
+export class AdminTokenService {
   constructor(
     @Inject(DRIZZLE) private readonly db: DrizzleDB,
     private readonly jwt: JwtService,
@@ -30,70 +28,66 @@ export class TokenService {
     private readonly id: IdService,
   ) {}
 
-  /** Mint a new access + refresh pair for a member. */
-  async issueTokens(user: Pick<User, 'id'>): Promise<TokenPair> {
-    const accessToken = await this.jwt.signAsync({ sub: user.id });
-    const refreshToken = await this.createRefreshToken(user.id);
+  async issueTokens(admin: Pick<Admin, 'id' | 'role'>): Promise<TokenPair> {
+    const accessToken = await this.jwt.signAsync({
+      sub: admin.id,
+      role: admin.role,
+      typ: 'admin',
+    });
+    const refreshToken = await this.createRefreshToken(admin.id);
     return { accessToken, refreshToken };
   }
 
-  /**
-   * Validate a refresh token and consume it (single-use rotation): the token is
-   * revoked and the owning userId returned. Throws if invalid/expired/revoked.
-   */
   async consumeRefreshToken(rawRefreshToken: string): Promise<string> {
     const tokenHash = this.hash(rawRefreshToken);
     const [row] = await this.db
       .select()
-      .from(refreshTokens)
-      .where(eq(refreshTokens.tokenHash, tokenHash));
+      .from(adminRefreshTokens)
+      .where(eq(adminRefreshTokens.tokenHash, tokenHash));
 
     if (!row) {
       throw new UnauthorizedException('Invalid refresh token');
     }
-
-    // Reuse detection: a token that was already rotated/revoked is being
-    // replayed — treat as theft and revoke ALL of the user's sessions.
     if (row.revokedAt) {
-      await this.revokeAllForUser(row.userId);
+      await this.revokeAllForAdmin(row.adminId);
       throw new UnauthorizedException('Refresh token reuse detected');
     }
-
     if (row.expiresAt.getTime() <= this.clock.epochMs()) {
       throw new UnauthorizedException('Expired refresh token');
     }
 
     await this.db
-      .update(refreshTokens)
+      .update(adminRefreshTokens)
       .set({ revokedAt: this.clock.now() })
-      .where(eq(refreshTokens.id, row.id));
-    return row.userId;
+      .where(eq(adminRefreshTokens.id, row.id));
+    return row.adminId;
   }
 
-  /** Revoke every active refresh token for a user (logout-everywhere). */
-  async revokeAllForUser(userId: string): Promise<void> {
+  async revoke(rawRefreshToken: string): Promise<void> {
     await this.db
-      .update(refreshTokens)
+      .update(adminRefreshTokens)
+      .set({ revokedAt: this.clock.now() })
+      .where(eq(adminRefreshTokens.tokenHash, this.hash(rawRefreshToken)));
+  }
+
+  async revokeAllForAdmin(adminId: string): Promise<void> {
+    await this.db
+      .update(adminRefreshTokens)
       .set({ revokedAt: this.clock.now() })
       .where(
-        and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)),
+        and(
+          eq(adminRefreshTokens.adminId, adminId),
+          isNull(adminRefreshTokens.revokedAt),
+        ),
       );
   }
 
-  /** Revoke a refresh token (logout). No-op if unknown/already revoked. */
-  async revoke(rawRefreshToken: string): Promise<void> {
-    await this.db
-      .update(refreshTokens)
-      .set({ revokedAt: this.clock.now() })
-      .where(eq(refreshTokens.tokenHash, this.hash(rawRefreshToken)));
-  }
-
-  private async createRefreshToken(userId: string): Promise<string> {
+  private async createRefreshToken(adminId: string): Promise<string> {
     const raw = randomBytes(32).toString('hex');
     const ttl = this.config.get('JWT_REFRESH_TTL', { infer: true });
-    await this.db.insert(refreshTokens).values({
+    await this.db.insert(adminRefreshTokens).values({
       id: this.id.generate(),
-      userId,
+      adminId,
       tokenHash: this.hash(raw),
       expiresAt: new Date(this.clock.epochMs() + ttl * 1000),
     });

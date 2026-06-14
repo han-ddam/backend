@@ -1,12 +1,6 @@
-import {
-  Inject,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { verify } from '@node-rs/argon2';
+import { Inject, Injectable } from '@nestjs/common';
 import { UsersService, type PublicProfile } from '@modules/users/users.service';
 import { TokenService, type TokenPair } from './tokens/token.service';
-import { LoginThrottleService } from './login-throttle.service';
 import {
   KAKAO_OAUTH,
   NAVER_OAUTH,
@@ -18,17 +12,17 @@ export interface AuthResult {
   tokens: TokenPair;
 }
 
+/** Member authentication — social login only (Kakao/Naver). */
 @Injectable()
 export class AuthService {
   constructor(
     private readonly users: UsersService,
     private readonly tokens: TokenService,
-    private readonly loginThrottle: LoginThrottleService,
     @Inject(KAKAO_OAUTH) private readonly kakao: OAuthVerifierPort,
     @Inject(NAVER_OAUTH) private readonly naver: OAuthVerifierPort,
   ) {}
 
-  /** Social login (auto-provisions the user on first login). */
+  /** Social login (auto-provisions the member on first login). */
   async loginWithOAuth(
     provider: 'KAKAO' | 'NAVER',
     accessToken: string,
@@ -36,23 +30,6 @@ export class AuthService {
     const verifier = provider === 'KAKAO' ? this.kakao : this.naver;
     const profile = await verifier.verify(accessToken);
     const user = await this.users.provisionFromOAuth(profile);
-    return {
-      user: this.users.toPublicProfile(user),
-      tokens: await this.tokens.issueTokens(user),
-    };
-  }
-
-  /** Email/password login — admin/staff accounts only. */
-  async loginWithEmail(email: string, password: string): Promise<AuthResult> {
-    await this.loginThrottle.assertNotLocked(email);
-
-    const user = await this.users.findByEmail(email);
-    if (!user?.passwordHash || !(await verify(user.passwordHash, password))) {
-      await this.loginThrottle.recordFailure(email);
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    await this.loginThrottle.reset(email);
     return {
       user: this.users.toPublicProfile(user),
       tokens: await this.tokens.issueTokens(user),

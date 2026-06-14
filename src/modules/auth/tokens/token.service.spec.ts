@@ -36,9 +36,9 @@ describe('TokenService', () => {
       const m = makeDb();
       const svc = new TokenService(m.db, jwt, config, clock, id);
 
-      const pair = await svc.issueTokens({ id: 'u1', role: 'USER' });
+      const pair = await svc.issueTokens({ id: 'u1' });
 
-      expect(jwt.signAsync).toHaveBeenCalledWith({ sub: 'u1', role: 'USER' });
+      expect(jwt.signAsync).toHaveBeenCalledWith({ sub: 'u1' });
       expect(pair.accessToken).toBe('access.jwt');
       // raw refresh token is 32 random bytes hex = 64 chars, returned once
       expect(pair.refreshToken).toMatch(/^[0-9a-f]{64}$/);

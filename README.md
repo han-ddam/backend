@@ -66,7 +66,8 @@ http://localhost:3000/api-docs
   `Strict-Transport-Security` 등) 및 `X-Powered-By` 노출 제거
 - **CORS**: `.env`의 `CORS_ORIGINS`로 허용 출처 제어 (`*` = 전체)
 - **Rate limit**: 기본 100req/분, 인증 엔드포인트는 10req/분 (무차별 대입 방지)
-- **JWT** 인증 + 역할 기반 접근 제어, 관리자 엔드포인트는 `x-admin-key` 헤더
+- **JWT** 인증(회원/관리자 토큰 분리) + 관리자 역할 기반 접근 제어
+- 비밀번호 **argon2** 해싱, 리프레시 토큰 회전·재사용 탐지, 로그인 실패 잠금
 
 ---
 
@@ -84,30 +85,36 @@ http://localhost:3000/api-docs
 
 ---
 
-## 인증 (로그인) API
+## 인증 API
 
-일반 사용자는 **카카오/네이버 소셜 로그인**만 사용합니다.
-앱이 카카오/네이버 SDK로 받은 access token을 서버로 보내면, 서버가 검증 후 우리 서비스의
-JWT(액세스/리프레시)를 발급합니다. **첫 로그인 시 자동으로 회원가입**됩니다.
-이메일 로그인은 **관리자 계정 전용**이며 공개 회원가입은 없습니다.
+회원(앱 사용자)과 관리자(백오피스)는 **테이블·인증·토큰이 완전히 분리**되어 있습니다.
+
+### 회원 — 소셜 로그인 (카카오/네이버)
+앱이 네이티브 SDK로 받은 access token을 서버로 보내면, 서버가 검증 후 우리 JWT를 발급합니다.
+**첫 로그인 시 자동 회원가입**되며, 회원은 비밀번호가 없습니다(소셜 전용).
 
 | 메서드 | 경로 | 설명 | 요청 본문 |
 |---|---|---|---|
 | POST | `/api/auth/oauth/kakao` | 카카오 로그인 | `{ "accessToken": "..." }` |
 | POST | `/api/auth/oauth/naver` | 네이버 로그인 | `{ "accessToken": "..." }` |
-| POST | `/api/auth/login` | 이메일 로그인(관리자) | `{ "email": "...", "password": "..." }` |
 | POST | `/api/auth/refresh` | 토큰 갱신 | `{ "refreshToken": "..." }` |
 | POST | `/api/auth/logout` | 로그아웃 | `{ "refreshToken": "..." }` |
-| GET | `/api/auth/me` | 내 정보 | (헤더에 `Authorization: Bearer <accessToken>`) |
+| GET | `/api/auth/me` | 내 정보 | `Authorization: Bearer <accessToken>` |
 
-로그인 성공 응답 예시:
+### 관리자 — 이메일/비밀번호 로그인
+관리자는 별도 `admin` 테이블·전용 JWT를 씁니다. 공개 가입은 없고, **최초 관리자는 시드 스크립트**로 생성합니다.
 
-```json
-{
-  "user": { "id": "...", "handle": "user_ab12cd34", "displayName": "홍길동", "role": "USER" },
-  "tokens": { "accessToken": "eyJ...", "refreshToken": "..." }
-}
+```bash
+pnpm seed:admin <email> <password> <name>   # 최초 SUPER_ADMIN 생성
 ```
+
+| 메서드 | 경로 | 설명 | 권한 |
+|---|---|---|---|
+| POST | `/api/admin/auth/login` | 관리자 로그인 `{ email, password }` | - |
+| POST | `/api/admin/auth/refresh` | 토큰 갱신 | - |
+| POST | `/api/admin/auth/logout` | 로그아웃 | - |
+| GET | `/api/admin/auth/me` | 내 정보 | 관리자 토큰 |
+| POST | `/api/admin/admins` | 관리자 계정 생성 | `SUPER_ADMIN` |
 
 이후 보호된 API는 헤더에 `Authorization: Bearer <accessToken>` 를 붙여 호출합니다.
 

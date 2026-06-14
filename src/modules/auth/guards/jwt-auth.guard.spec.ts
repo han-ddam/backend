@@ -30,7 +30,7 @@ describe('JwtAuthGuard', () => {
   });
 
   it('attaches req.user for a valid token', async () => {
-    jwt.verifyAsync.mockResolvedValue({ sub: 'u1', role: 'ADMIN' });
+    jwt.verifyAsync.mockResolvedValue({ sub: 'u1' });
     const req: any = {};
 
     const ok = await guard.canActivate(
@@ -39,7 +39,7 @@ describe('JwtAuthGuard', () => {
 
     expect(ok).toBe(true);
     expect(jwt.verifyAsync).toHaveBeenCalledWith('good.jwt');
-    expect(req.user).toEqual({ userId: 'u1', role: 'ADMIN' });
+    expect(req.user).toEqual({ userId: 'u1' });
   });
 
   it('rejects an invalid token', async () => {

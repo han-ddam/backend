@@ -3,4 +3,5 @@
 export * from './enums';
 export * from './users';
 export * from './auth';
+export * from './admin';
 export * from './regions';

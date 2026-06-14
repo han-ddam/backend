@@ -1,23 +1,23 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { ApiSecurity, ApiTags } from '@nestjs/swagger';
-import { UsersService } from '@modules/users/users.service';
-import { AdminKeyGuard } from './guards/admin-key.guard';
-import { CreateAdminUserDto } from './dto/create-admin-user.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { AdminService } from './admin.service';
+import { AdminJwtGuard } from './guards/admin-jwt.guard';
+import { AdminRolesGuard } from './guards/admin-roles.guard';
+import { AdminRoles } from './decorators/admin-roles.decorator';
+import { CreateAdminDto } from './dto/admin.dto';
 
-/**
- * Internal admin endpoints — protected by the `x-admin-key` header (Postman-only).
- * There is no public email signup; staff accounts are created here.
- */
+/** Admin management — only SUPER_ADMIN can create other admins. */
 @ApiTags('admin')
-@ApiSecurity('admin-key')
+@ApiBearerAuth()
 @Controller('admin')
-@UseGuards(AdminKeyGuard)
+@UseGuards(AdminJwtGuard, AdminRolesGuard)
 export class AdminController {
-  constructor(private readonly users: UsersService) {}
+  constructor(private readonly admins: AdminService) {}
 
-  @Post('users')
-  async createUser(@Body() dto: CreateAdminUserDto) {
-    const user = await this.users.createEmailUser(dto);
-    return this.users.toPublicProfile(user);
+  @Post('admins')
+  @AdminRoles('SUPER_ADMIN')
+  async createAdmin(@Body() dto: CreateAdminDto) {
+    const admin = await this.admins.createAdmin(dto);
+    return this.admins.toProfile(admin);
   }
 }

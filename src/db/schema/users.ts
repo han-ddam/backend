@@ -1,16 +1,15 @@
 import { pgTable, uuid, text, timestamp } from 'drizzle-orm/pg-core';
-import { localeEnum, userRoleEnum } from './enums';
+import { localeEnum } from './enums';
 
+/**
+ * App members — authenticate via social login only (see oauth_identity).
+ * No password and no admin role: back-office accounts live in the `admin` table.
+ */
 export const users = pgTable('users', {
   id: uuid('id').primaryKey(), // UUIDv7 generated app-side (IdService)
-  // email is nullable: social users may not consent to share it, and there is NO
-  // public email signup. password_hash is nullable: only admin-created accounts
-  // (staff) have a password; social users authenticate via oauth_identity.
-  email: text('email').unique(),
-  passwordHash: text('password_hash'),
+  email: text('email').unique(), // nullable: social provider may not share it
   handle: text('handle').notNull().unique(), // e.g. @seoulriver
   displayName: text('display_name').notNull(),
-  role: userRoleEnum('role').notNull().default('USER'),
   locale: localeEnum('locale').notNull().default('KO'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
