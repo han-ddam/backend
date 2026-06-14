@@ -83,29 +83,32 @@ async function main() {
     }
     console.log(`시·도 ${sidos.length}개 수신`);
 
-    let sigunguTotal = 0;
-    for (const sido of sidos) {
+    // region(코드/구조) upsert + region_i18n(KO 이름) upsert
+    const upsertRegion = async (
+      code: string,
+      parentCode: string | null,
+      nameKo: string,
+    ) => {
       await db
         .insert(schema.regions)
-        .values({ code: sido.code, nameKo: sido.name, parentCode: null })
+        .values({ code, parentCode })
+        .onConflictDoUpdate({ target: schema.regions.code, set: { parentCode } });
+      await db
+        .insert(schema.regionI18n)
+        .values({ regionCode: code, locale: 'KO', name: nameKo })
         .onConflictDoUpdate({
-          target: schema.regions.code,
-          set: { nameKo: sido.name },
+          target: [schema.regionI18n.regionCode, schema.regionI18n.locale],
+          set: { name: nameKo },
         });
+    };
+
+    let sigunguTotal = 0;
+    for (const sido of sidos) {
+      await upsertRegion(sido.code, null, sido.name);
 
       const sigungus = await fetchAreas(sido.code);
       for (const sg of sigungus) {
-        await db
-          .insert(schema.regions)
-          .values({
-            code: `${sido.code}_${sg.code}`,
-            nameKo: sg.name,
-            parentCode: sido.code,
-          })
-          .onConflictDoUpdate({
-            target: schema.regions.code,
-            set: { nameKo: sg.name, parentCode: sido.code },
-          });
+        await upsertRegion(`${sido.code}_${sg.code}`, sido.code, sg.name);
       }
       sigunguTotal += sigungus.length;
       console.log(` - ${sido.name}(${sido.code}): 시·군·구 ${sigungus.length}`);
