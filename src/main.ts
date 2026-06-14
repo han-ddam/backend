@@ -41,23 +41,29 @@ async function bootstrap() {
       .setVersion('0.1')
       .addBearerAuth() // JWT access token
       .addApiKey({ type: 'apiKey', name: 'x-admin-key', in: 'header' }, 'admin-key')
-      // context headers — show as inputs on every endpoint in Swagger UI
-      .addGlobalParameters(
-        {
-          name: 'Accept-Language',
-          in: 'header',
-          required: false,
-          schema: { type: 'string', enum: ['ko', 'en', 'ja', 'zh'], default: 'ko' },
-        },
-        {
-          name: 'X-Client',
-          in: 'header',
-          required: false,
-          schema: { type: 'string', enum: ['ios', 'android', 'admin'] },
-        },
+      // context headers exposed in the Authorize dialog (set once, applied to all requests)
+      .addApiKey(
+        { type: 'apiKey', name: 'Accept-Language', in: 'header' },
+        'accept-language',
       )
+      .addApiKey({ type: 'apiKey', name: 'X-Client', in: 'header' }, 'x-client')
       .build();
-    SwaggerModule.setup('api-docs', app, SwaggerModule.createDocument(app, doc));
+
+    const document = SwaggerModule.createDocument(app, doc);
+    // attach the two context headers to every operation so a value set once in
+    // the Authorize dialog is sent on all requests
+    const contextSecurity = { 'accept-language': [], 'x-client': [] };
+    for (const pathItem of Object.values(document.paths)) {
+      for (const method of ['get', 'post', 'put', 'patch', 'delete'] as const) {
+        const op = pathItem[method];
+        if (!op) continue;
+        op.security =
+          op.security && op.security.length > 0
+            ? op.security.map((req) => ({ ...req, ...contextSecurity }))
+            : [{ ...contextSecurity }];
+      }
+    }
+    SwaggerModule.setup('api-docs', app, document);
   }
 
   const port = config.get('PORT', { infer: true });
