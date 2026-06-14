@@ -39,5 +39,6 @@ import { AdminRolesGuard } from './guards/admin-roles.guard';
     AdminJwtGuard,
     AdminRolesGuard,
   ],
+  exports: [AdminJwtGuard, AdminRolesGuard, JwtModule],
 })
 export class AdminModule {}

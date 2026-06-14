@@ -50,6 +50,13 @@
       "when": 1781720000000,
       "tag": "0006_admin_role_two",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781730000000,
+      "tag": "0007_curious_spot",
+      "breakpoints": true
     }
   ]
 }
