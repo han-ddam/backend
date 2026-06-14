@@ -1,14 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, or } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import {
   users,
   oauthIdentity,
   type User,
   type authProviderEnum,
+  type userStatusEnum,
 } from '@db/schema';
 
 type Provider = (typeof authProviderEnum.enumValues)[number];
+type UserStatus = (typeof userStatusEnum.enumValues)[number];
 
 export interface CreateUserInput {
   id: string;
@@ -75,5 +77,47 @@ export class UsersRepository {
       });
       return user;
     });
+  }
+
+  /** Paginated member list with optional search (handle/displayName/email). */
+  async list(params: {
+    limit: number;
+    offset: number;
+    q?: string;
+  }): Promise<{ rows: User[]; total: number }> {
+    const where = params.q
+      ? or(
+          ilike(users.handle, `%${params.q}%`),
+          ilike(users.displayName, `%${params.q}%`),
+          ilike(users.email, `%${params.q}%`),
+        )
+      : undefined;
+
+    const rows = await this.db
+      .select()
+      .from(users)
+      .where(where)
+      .orderBy(desc(users.createdAt))
+      .limit(params.limit)
+      .offset(params.offset);
+
+    const [{ value }] = await this.db
+      .select({ value: count() })
+      .from(users)
+      .where(where);
+
+    return { rows, total: Number(value) };
+  }
+
+  async updateStatus(
+    id: string,
+    status: UserStatus,
+  ): Promise<User | undefined> {
+    const [row] = await this.db
+      .update(users)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return row;
   }
 }

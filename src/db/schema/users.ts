@@ -1,5 +1,5 @@
 import { pgTable, uuid, text, timestamp } from 'drizzle-orm/pg-core';
-import { localeEnum } from './enums';
+import { localeEnum, userStatusEnum } from './enums';
 
 /**
  * App members — authenticate via social login only (see oauth_identity).
@@ -11,6 +11,7 @@ export const users = pgTable('users', {
   handle: text('handle').notNull().unique(), // e.g. @seoulriver
   displayName: text('display_name').notNull(),
   locale: localeEnum('locale').notNull().default('KO'),
+  status: userStatusEnum('status').notNull().default('ACTIVE'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

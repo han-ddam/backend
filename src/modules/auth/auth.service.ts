@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { UsersService, type PublicProfile } from '@modules/users/users.service';
 import { TokenService, type TokenPair } from './tokens/token.service';
 import {
@@ -30,6 +30,9 @@ export class AuthService {
     const verifier = provider === 'KAKAO' ? this.kakao : this.naver;
     const profile = await verifier.verify(accessToken);
     const user = await this.users.provisionFromOAuth(profile);
+    if (user.status === 'SUSPENDED') {
+      throw new ForbiddenException('Account suspended');
+    }
     return {
       user: this.users.toPublicProfile(user),
       tokens: await this.tokens.issueTokens(user),

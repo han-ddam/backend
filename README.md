@@ -114,7 +114,25 @@ pnpm seed:admin <email> <password> <name>   # 최초 SUPER_ADMIN 생성
 | POST | `/api/admin/auth/refresh` | 토큰 갱신 | - |
 | POST | `/api/admin/auth/logout` | 로그아웃 | - |
 | GET | `/api/admin/auth/me` | 내 정보 | 관리자 토큰 |
-| POST | `/api/admin/admins` | 관리자 계정 생성 | `SUPER_ADMIN` |
+
+**관리자 관리** (`SUPER_ADMIN`)
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| GET | `/api/admin/admins?page=&limit=&q=` | 관리자 목록(페이지네이션·검색) |
+| GET | `/api/admin/admins/:id` | 관리자 상세 |
+| POST | `/api/admin/admins` | 관리자 생성 |
+| PATCH | `/api/admin/admins/:id` | 수정 `{ name?, role?, isActive? }` |
+
+**회원 관리** (`ADMIN`, `SUPER_ADMIN`)
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| GET | `/api/admin/members?page=&limit=&q=` | 회원 목록(페이지네이션·검색) |
+| GET | `/api/admin/members/:id` | 회원 상세 |
+| PATCH | `/api/admin/members/:id/status` | 정지/해제 `{ status: ACTIVE\|SUSPENDED }` |
+
+> 정지(SUSPENDED)된 회원은 소셜 로그인이 차단됩니다.
 
 이후 보호된 API는 헤더에 `Authorization: Bearer <accessToken>` 를 붙여 호출합니다.
 
