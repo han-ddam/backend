@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import { ClockService } from '@platform/clock/clock.service';
 import { IdService } from '@platform/id/id.service';
@@ -51,12 +51,19 @@ export class TokenService {
       .from(refreshTokens)
       .where(eq(refreshTokens.tokenHash, tokenHash));
 
-    if (
-      !row ||
-      row.revokedAt ||
-      row.expiresAt.getTime() <= this.clock.epochMs()
-    ) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+    if (!row) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // Reuse detection: a token that was already rotated/revoked is being
+    // replayed — treat as theft and revoke ALL of the user's sessions.
+    if (row.revokedAt) {
+      await this.revokeAllForUser(row.userId);
+      throw new UnauthorizedException('Refresh token reuse detected');
+    }
+
+    if (row.expiresAt.getTime() <= this.clock.epochMs()) {
+      throw new UnauthorizedException('Expired refresh token');
     }
 
     await this.db
@@ -64,6 +71,16 @@ export class TokenService {
       .set({ revokedAt: this.clock.now() })
       .where(eq(refreshTokens.id, row.id));
     return row.userId;
+  }
+
+  /** Revoke every active refresh token for a user (logout-everywhere). */
+  async revokeAllForUser(userId: string): Promise<void> {
+    await this.db
+      .update(refreshTokens)
+      .set({ revokedAt: this.clock.now() })
+      .where(
+        and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)),
+      );
   }
 
   /** Revoke a refresh token (logout). No-op if unknown/already revoked. */

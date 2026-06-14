@@ -6,6 +6,7 @@ import { UsersModule } from '@modules/users/users.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { TokenService } from './tokens/token.service';
+import { LoginThrottleService } from './login-throttle.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { KAKAO_OAUTH, NAVER_OAUTH } from './oauth/oauth.port';
@@ -19,9 +20,12 @@ import { NaverOAuthAdapter } from './oauth/naver.adapter';
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => ({
         secret: config.get('JWT_ACCESS_SECRET', { infer: true }),
+        // pin the algorithm to prevent algorithm-confusion attacks
         signOptions: {
           expiresIn: config.get('JWT_ACCESS_TTL', { infer: true }),
+          algorithm: 'HS256',
         },
+        verifyOptions: { algorithms: ['HS256'] },
       }),
     }),
   ],
@@ -29,6 +33,7 @@ import { NaverOAuthAdapter } from './oauth/naver.adapter';
   providers: [
     AuthService,
     TokenService,
+    LoginThrottleService,
     JwtAuthGuard,
     RolesGuard,
     { provide: KAKAO_OAUTH, useClass: KakaoOAuthAdapter },

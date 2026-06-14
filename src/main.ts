@@ -5,6 +5,7 @@ import { ZodValidationPipe, patchNestJsSwagger } from 'nestjs-zod';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger } from '@nestjs/common';
 import helmet from 'helmet';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import type { Env } from '@platform/config/env';
 
@@ -15,6 +16,9 @@ async function bootstrap() {
 
   // --- security ---
   app.use(helmet()); // secure HTTP headers, hides x-powered-by
+  // limit request body size (DoS protection); file uploads use their own limits
+  app.use(json({ limit: '1mb' }));
+  app.use(urlencoded({ extended: true, limit: '1mb' }));
   const corsOrigins = config.get('CORS_ORIGINS', { infer: true });
   app.enableCors({
     origin:

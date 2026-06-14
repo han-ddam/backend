@@ -6,6 +6,7 @@ import {
 import { verify } from '@node-rs/argon2';
 import { UsersService, type PublicProfile } from '@modules/users/users.service';
 import { TokenService, type TokenPair } from './tokens/token.service';
+import { LoginThrottleService } from './login-throttle.service';
 import {
   KAKAO_OAUTH,
   NAVER_OAUTH,
@@ -22,6 +23,7 @@ export class AuthService {
   constructor(
     private readonly users: UsersService,
     private readonly tokens: TokenService,
+    private readonly loginThrottle: LoginThrottleService,
     @Inject(KAKAO_OAUTH) private readonly kakao: OAuthVerifierPort,
     @Inject(NAVER_OAUTH) private readonly naver: OAuthVerifierPort,
   ) {}
@@ -42,10 +44,15 @@ export class AuthService {
 
   /** Email/password login — admin/staff accounts only. */
   async loginWithEmail(email: string, password: string): Promise<AuthResult> {
+    await this.loginThrottle.assertNotLocked(email);
+
     const user = await this.users.findByEmail(email);
     if (!user?.passwordHash || !(await verify(user.passwordHash, password))) {
+      await this.loginThrottle.recordFailure(email);
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    await this.loginThrottle.reset(email);
     return {
       user: this.users.toPublicProfile(user),
       tokens: await this.tokens.issueTokens(user),

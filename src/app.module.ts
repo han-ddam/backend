@@ -1,7 +1,10 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import type { Redis } from 'ioredis';
 import { PlatformModule } from '@platform/platform.module';
+import { REDIS } from '@platform/redis/redis.module';
 import { RequestContextMiddleware } from '@platform/context/request-context.middleware';
 import { HealthModule } from '@modules/health/health.module';
 import { GeoModule } from '@modules/geo/geo.module';
@@ -16,8 +19,15 @@ import { AdminModule } from '@modules/admin/admin.module';
  */
 @Module({
   imports: [
-    // global rate limit: 100 requests / 60s per IP (auth routes override stricter)
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    // global rate limit: 100 requests / 60s per IP (auth routes override stricter).
+    // Redis-backed so limits are shared across all server instances.
+    ThrottlerModule.forRootAsync({
+      inject: [REDIS],
+      useFactory: (redis: Redis) => ({
+        throttlers: [{ ttl: 60_000, limit: 100 }],
+        storage: new ThrottlerStorageRedisService(redis),
+      }),
+    }),
     PlatformModule,
     HealthModule,
     GeoModule,

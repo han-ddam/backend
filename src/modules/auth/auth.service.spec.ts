@@ -9,6 +9,7 @@ const verifyMock = verify as jest.Mock;
 describe('AuthService', () => {
   let users: any;
   let tokens: any;
+  let loginThrottle: any;
   let kakao: any;
   let naver: any;
   let service: AuthService;
@@ -29,9 +30,14 @@ describe('AuthService', () => {
       consumeRefreshToken: jest.fn().mockResolvedValue('u1'),
       revoke: jest.fn().mockResolvedValue(undefined),
     };
+    loginThrottle = {
+      assertNotLocked: jest.fn().mockResolvedValue(undefined),
+      recordFailure: jest.fn().mockResolvedValue(undefined),
+      reset: jest.fn().mockResolvedValue(undefined),
+    };
     kakao = { verify: jest.fn() };
     naver = { verify: jest.fn() };
-    service = new AuthService(users, tokens, kakao, naver);
+    service = new AuthService(users, tokens, loginThrottle, kakao, naver);
     verifyMock.mockReset();
   });
 
@@ -60,15 +66,32 @@ describe('AuthService', () => {
   });
 
   describe('loginWithEmail', () => {
-    it('issues tokens on valid credentials', async () => {
+    it('issues tokens on valid credentials and resets the failure counter', async () => {
       users.findByEmail.mockResolvedValue(user);
       verifyMock.mockResolvedValue(true);
 
       const result = await service.loginWithEmail('admin@x.com', 'pw');
 
+      expect(loginThrottle.assertNotLocked).toHaveBeenCalledWith('admin@x.com');
       expect(verifyMock).toHaveBeenCalledWith('hash', 'pw');
+      expect(loginThrottle.reset).toHaveBeenCalledWith('admin@x.com');
       expect(tokens.issueTokens).toHaveBeenCalledWith(user);
       expect(result.tokens).toEqual(tokenPair);
+    });
+
+    it('records a failure on a wrong password', async () => {
+      users.findByEmail.mockResolvedValue(user);
+      verifyMock.mockResolvedValue(false);
+      await expect(service.loginWithEmail('admin@x.com', 'bad')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(loginThrottle.recordFailure).toHaveBeenCalledWith('admin@x.com');
+    });
+
+    it('rejects immediately when the account is locked', async () => {
+      loginThrottle.assertNotLocked.mockRejectedValue(new Error('locked'));
+      await expect(service.loginWithEmail('admin@x.com', 'pw')).rejects.toThrow();
+      expect(users.findByEmail).not.toHaveBeenCalled();
     });
 
     it('rejects when the user does not exist', async () => {

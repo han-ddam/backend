@@ -93,7 +93,7 @@ describe('TokenService', () => {
       );
     });
 
-    it('throws when the token is already revoked', async () => {
+    it('detects reuse of a revoked token and revokes all of the users sessions', async () => {
       const m = makeDb();
       m.selectWhere.mockResolvedValue([{ ...validRow, revokedAt: fixed }]);
       const svc = new TokenService(m.db, jwt, config, clock, id);
@@ -101,6 +101,9 @@ describe('TokenService', () => {
       await expect(svc.consumeRefreshToken('raw')).rejects.toThrow(
         UnauthorizedException,
       );
+      // revoke-all-for-user was triggered (theft response)
+      expect(m.update).toHaveBeenCalledTimes(1);
+      expect(m.updateWhere).toHaveBeenCalledTimes(1);
     });
   });
 
