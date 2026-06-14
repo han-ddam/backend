@@ -1,9 +1,6 @@
 import { of } from 'rxjs';
 import { CallHandler, ExecutionContext } from '@nestjs/common';
-import {
-  API_VERSION,
-  ResponseHeadersInterceptor,
-} from './response-headers.interceptor';
+import { ResponseHeadersInterceptor } from './response-headers.interceptor';
 
 function ctx(reqHeaders: Record<string, unknown>, res: { setHeader: jest.Mock }) {
   return {
@@ -20,12 +17,11 @@ describe('ResponseHeadersInterceptor', () => {
   const id = { generate: jest.fn().mockReturnValue('generated-id') } as any;
   const interceptor = new ResponseHeadersInterceptor(id);
 
-  it('generates a request id and sets the version header', () => {
+  it('generates a request id when none is provided', () => {
     const res = { setHeader: jest.fn() };
     interceptor.intercept(ctx({}, res), next);
 
     expect(res.setHeader).toHaveBeenCalledWith('X-Request-Id', 'generated-id');
-    expect(res.setHeader).toHaveBeenCalledWith('X-Api-Version', API_VERSION);
   });
 
   it('reuses an incoming x-request-id', () => {

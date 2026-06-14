@@ -8,13 +8,10 @@ import type { Request, Response } from 'express';
 import type { Observable } from 'rxjs';
 import { IdService } from '@platform/id/id.service';
 
-export const API_VERSION = '0.1';
-
 /**
- * Adds custom response headers to every request:
- *  - `X-Request-Id`: a correlation id (reuses the client's if provided, else generated)
- *    so any request can be traced through logs — useful for auditing/incident response.
- *  - `X-Api-Version`: the API version.
+ * Adds a `X-Request-Id` correlation header to every response — reuses the
+ * client's value if provided, otherwise generates one. Lets any request be
+ * traced through logs, which is useful for auditing and incident response.
  */
 @Injectable()
 export class ResponseHeadersInterceptor implements NestInterceptor {
@@ -32,7 +29,6 @@ export class ResponseHeadersInterceptor implements NestInterceptor {
         : this.id.generate();
 
     res.setHeader('X-Request-Id', requestId);
-    res.setHeader('X-Api-Version', API_VERSION);
 
     return next.handle();
   }
