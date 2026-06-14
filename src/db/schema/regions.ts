@@ -6,23 +6,25 @@ import {
   primaryKey,
 } from 'drizzle-orm/pg-core';
 import { geometryMultiPolygon } from '@db/columns';
-import { localeEnum } from './enums';
+import { localeEnum, regionLevelEnum } from './enums';
 
 /**
- * 시·도 / 시·군·구 — language-neutral. Names live in `region_i18n`.
+ * Administrative regions — language-neutral. Names live in `region_trans`.
+ * PROVINCE(시·도) / DISTRICT(시·군·구), generic so non-KR expansion stays possible.
  * `boundary` needs a GIST index (hand-authored SQL migration, see 02-design.md §3.6).
  */
 export const regions = pgTable('region', {
-  code: varchar('code', { length: 10 }).primaryKey(), // areaCode or `${areaCode}_${sigungu}`
-  parentCode: varchar('parent_code', { length: 10 }), // 상위 시·도 (시·도는 null)
+  code: varchar('code', { length: 10 }).primaryKey(), // areaCode or `${areaCode}_${district}`
+  level: regionLevelEnum('level').notNull(),
+  parentCode: varchar('parent_code', { length: 10 }), // parent PROVINCE (province=null)
   boundary: geometryMultiPolygon('boundary'),
   // Denormalized convenience; source of truth for the weight is the policy table.
   isDecliningPop: boolean('is_declining_pop').notNull().default(false),
 });
 
 /** Per-locale region names (KO/EN/JA/ZH). KO is the fallback. */
-export const regionI18n = pgTable(
-  'region_i18n',
+export const regionTrans = pgTable(
+  'region_trans',
   {
     regionCode: varchar('region_code', { length: 10 })
       .notNull()
@@ -37,4 +39,4 @@ export const regionI18n = pgTable(
 
 export type Region = typeof regions.$inferSelect;
 export type NewRegion = typeof regions.$inferInsert;
-export type RegionI18n = typeof regionI18n.$inferSelect;
+export type RegionTrans = typeof regionTrans.$inferSelect;

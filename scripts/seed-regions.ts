@@ -83,37 +83,41 @@ async function main() {
     }
     console.log(`시·도 ${sidos.length}개 수신`);
 
-    // region(코드/구조) upsert + region_i18n(KO 이름) upsert
+    // region(코드/구조) upsert + region_trans(KO 이름) upsert
     const upsertRegion = async (
       code: string,
+      level: 'PROVINCE' | 'DISTRICT',
       parentCode: string | null,
       nameKo: string,
     ) => {
       await db
         .insert(schema.regions)
-        .values({ code, parentCode })
-        .onConflictDoUpdate({ target: schema.regions.code, set: { parentCode } });
+        .values({ code, level, parentCode })
+        .onConflictDoUpdate({
+          target: schema.regions.code,
+          set: { level, parentCode },
+        });
       await db
-        .insert(schema.regionI18n)
+        .insert(schema.regionTrans)
         .values({ regionCode: code, locale: 'KO', name: nameKo })
         .onConflictDoUpdate({
-          target: [schema.regionI18n.regionCode, schema.regionI18n.locale],
+          target: [schema.regionTrans.regionCode, schema.regionTrans.locale],
           set: { name: nameKo },
         });
     };
 
-    let sigunguTotal = 0;
-    for (const sido of sidos) {
-      await upsertRegion(sido.code, null, sido.name);
+    let districtTotal = 0;
+    for (const province of sidos) {
+      await upsertRegion(province.code, 'PROVINCE', null, province.name);
 
-      const sigungus = await fetchAreas(sido.code);
-      for (const sg of sigungus) {
-        await upsertRegion(`${sido.code}_${sg.code}`, sido.code, sg.name);
+      const districts = await fetchAreas(province.code);
+      for (const d of districts) {
+        await upsertRegion(`${province.code}_${d.code}`, 'DISTRICT', province.code, d.name);
       }
-      sigunguTotal += sigungus.length;
-      console.log(` - ${sido.name}(${sido.code}): 시·군·구 ${sigungus.length}`);
+      districtTotal += districts.length;
+      console.log(` - ${province.name}(${province.code}): district ${districts.length}`);
     }
-    console.log(`완료 — 시·도 ${sidos.length}, 시·군·구 ${sigunguTotal}`);
+    console.log(`완료 — province ${sidos.length}, district ${districtTotal}`);
   } finally {
     await client.end();
   }

@@ -8,7 +8,11 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
 
-export const authProviderEnum = pgEnum('auth_provider', ['KAKAO', 'NAVER']);
+export const authProviderEnum = pgEnum('auth_provider', [
+  'KAKAO',
+  'NAVER',
+  'GOOGLE',
+]);
 
 /**
  * Links an external social identity (Kakao/Naver) to a canonical user.
