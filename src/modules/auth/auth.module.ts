@@ -38,6 +38,7 @@ import { GoogleOAuthAdapter } from './oauth/google.adapter';
     { provide: NAVER_OAUTH, useClass: NaverOAuthAdapter },
     { provide: GOOGLE_OAUTH, useClass: GoogleOAuthAdapter },
   ],
-  exports: [JwtAuthGuard],
+  // JwtModule도 export → 다른 모듈이 JwtAuthGuard 사용 시 JwtService 해석 가능
+  exports: [JwtAuthGuard, JwtModule],
 })
 export class AuthModule {}

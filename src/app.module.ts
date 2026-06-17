@@ -12,6 +12,7 @@ import { UsersModule } from '@modules/users/users.module';
 import { AuthModule } from '@modules/auth/auth.module';
 import { AdminModule } from '@modules/admin/admin.module';
 import { PlacesModule } from '@modules/places/places.module';
+import { AgreementsModule } from '@modules/agreements/agreements.module';
 
 /**
  * Root composition. PlatformModule (global) provides infra to every domain
@@ -36,6 +37,7 @@ import { PlacesModule } from '@modules/places/places.module';
     AuthModule,
     AdminModule,
     PlacesModule,
+    AgreementsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
