@@ -104,16 +104,34 @@ cursor<T>     = { items:[T], nextCursor }           // keyset · 앱 피드
 
 ---
 
+### 5.5 인증 진입 / 위치 선택 (주변 관광지)  📐
+카드: `dto-nearby.svg`
+
+**바로 인증 탭** 진입(장소 정보 없음) 시, 또는 자동 특정된 장소를 **"위치 수정"**할 때 사용.
+
+| 메서드 · 경로 | 쿼리 | 응답 → 화면 |
+|---|---|---|
+| `GET /places/nearby` | `?lat=&lng=&radius=2000&limit=20` | `[ { placeId, name, address, distanceM, regionCode, thumbnailUrl } ]` (가까운 순) → 주변 관광지 목록 |
+
+> 흐름: GPS → 이 목록(영금정 100m · 설악산 1200m …) → 사용자가 택1 → `place_id` → 카메라/작성(§5·§6).
+> GPS 자동 특정의 **정확도 한계** 때문에, 자동 선택된 장소 옆 **"위치 수정"** 버튼 → 이 목록 재호출로 사용자가 보정하는 동선이 필수.
+> 거리계산/근접은 PostGIS `ST_DWithin`(place 좌표 기준, `GeoService`). place 좌표는 TourAPI 동기화로 적재 필요(미적재 시 빈 목록).
+> ⚠️ 유저 GPS = 개인위치정보(위치정보법). 좌표는 근접 판정에만 쓰고 **저장하지 않는 방향** 검토(법무 확인) — Decision Log 참고.
+
+---
+
 ### 6. 방문 인증하기 (작성·제출)  📐
 카드: `dto-certify-submit.svg`
 
 | 메서드 · 경로 | 요청 | 응답 |
 |---|---|---|
 | `GET /scoring/places/:id` | - | `{ action, basePoints, regionWeight, rarityWeight, eventMultiplier, estimatedPoints }` → 예상 점수 +15 / ×1.5 |
+| `GET /places/nearby` | `?lat=&lng=&radius=&limit=` | (§5.5) "위치 수정" 버튼 → 주변 관광지 목록 재선택 |
 | `POST /certifications/photos/presigned` | `{ contentType }` | `{ uploadUrl, imageKey }` (S3 직접 업로드) |
 | `POST /certifications` (header `Idempotency-Key`) | `{ placeId, imageKey, deviceLat, deviceLng, capturedAt, caption?, visibility:PRIVATE\|PUBLIC }` | §7 응답 |
 
 > **`Idempotency-Key`** = "인증 올리기" 탭 시 클라가 만든 UUID(재시도해도 동일). 점수·EXP·도감을 바꾸는 요청이라, 더블탭·자동 재시도·응답 유실로 같은 인증이 여러 번 처리되면 점수 중복 지급/도감 중복 등록됨 → 서버가 이 키로 "같은 시도"를 식별해 **처음 1번만 처리, 이후엔 저장된 결과를 반환(멱등, TTL 24h)**.
+> 상단 장소명 옆 **"위치 수정"** → `GET /places/nearby`로 주변 목록 재선택(자동 특정 보정).
 > 화면의 ✅위치 확인·✅구도 확인은 **클라 프리뷰**(place 좌표 + compositions). 최종 판정은 제출 응답의 `proximityPass`/`compositionMatch`.
 
 ---
@@ -212,12 +230,13 @@ cursor<T>     = { items:[T], nextCursor }           // keyset · 앱 피드
 | 회원 OAuth(kakao/naver/google)·refresh·logout·me | ✅ |
 | 관리자 인증·회원관리·관리자관리 | ✅ |
 | 여행지 `GET /places/:id`·`/places`(목록)·관리자 CRUD | ✅ |
+| `GET /places/nearby`(GPS 주변 관광지, 인증 진입/위치 수정) | 📐 (place 좌표 적재 전제) |
+| 약관 `/agreements/current`·`POST·GET /me/agreements` | ✅ |
 | `/me/summary`·`/me/progress/provinces`·`/discovery/today` | 📐 |
 | `/regions/:code`(상세)·`/regions/:code/places`·`recommended` | 📐 |
 | `/scoring/places/:id`·`/places/:id/compositions`·`/places/:id/certifications` | 📐 |
 | 인증 `presigned`·`POST /certifications`(+멱등) | 📐 |
 | `/me/dogam/*`·`/me/profile`·`/me/collections`·`/rankings` | 📐 |
-| 약관 `/agreements/current`·`/me/agreements` | 📐 |
 
 ---
 
@@ -232,6 +251,8 @@ cursor<T>     = { items:[T], nextCursor }           // keyset · 앱 피드
 7. **페이지네이션** — 앱 피드는 커서(keyset), 관리자 목록은 오프셋.
 8. **용어** — region.level = `PROVINCE`(도/시·도) / `DISTRICT`(시·군·구). sido/sigungu 표기 폐기.
 9. **다국어** — 콘텐츠 테이블별 `_trans`(KO 폴백), `Accept-Language` → `RequestContext.locale`.
+10. **인증 진입 = GPS → 주변 관광지 목록** — 바로 인증 탭은 `GET /places/nearby`(GPS)로 가까운 순 후보를 보여주고 사용자가 택1. 자동 특정 정확도 한계 때문에 **"위치 수정"**(목록 재선택) 동선 필수. 지역 경계(`ST_Contains`)가 아니라 **place 좌표 근접(`ST_DWithin`)**이 인증의 핵심.
+11. **유저 위치 = 개인위치정보(위치정보법)** — 디바이스 GPS는 근접 판정에만 쓰고 **원본 좌표 미저장**(`proximityPass`만 저장) 방향 검토. region 경계/place 좌표(vworld·TourAPI) 같은 *참조 데이터*는 규제 무관. LBS 신고 여부는 법무 확인.
 
 ---
 
