@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 244" font-family="sans-serif">
+  <rect width="820" height="244" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <path d="M0,6 a6,6 0 0 1 6,-6 h808 a6,6 0 0 1 6,6 v26 h-820 z" fill="#10b981"/>
+  <text x="16" y="22" fill="#fff" font-size="14" font-weight="700">여행지 상세 (속초 영금정) — DTO</text>
+  <g font-family="monospace" font-size="12" fill="#0f172a">
+    <text x="16" y="56"><tspan fill="#047857">GET</tspan> /places/:id</text>
+    <text x="16" y="76">    →  { id, regionCode, name, address, description, mission, tags[], rarityWeight, rating, ratingCount, visitStatus, images[] }</text>
+    <text x="16" y="104"><tspan fill="#047857">GET</tspan> /scoring/places/:id   (별 가중치/예상 점수)</text>
+    <text x="16" y="124">    →  { action, basePoints, regionWeight, rarityWeight, eventMultiplier, estimatedPoints }</text>
+    <text x="16" y="152"><tspan fill="#047857">GET</tspan> /places/:id/compositions   (구도 추천)</text>
+    <text x="16" y="172">    →  [ { seq, title, description, exampleImageUrl, source } ]</text>
+    <text x="16" y="200"><tspan fill="#047857">GET</tspan> /places/:id/certifications?cursor=&amp;limit=8   (타인 인증샷)</text>
+    <text x="16" y="220">    →  { items[{ imageUrl, userHandle }], nextCursor }</text>
+  </g>
+</svg>

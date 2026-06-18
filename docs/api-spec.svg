@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 700" font-family="sans-serif">
+  <rect x="0" y="0" width="1180" height="700" fill="#f8fafc"/>
+  <text x="40" y="30" font-size="20" font-weight="700" fill="#0f172a">한땀 — 화면별 API 맵 (Figma 대조)</text>
+  <g font-size="12">
+    <text x="640" y="24" fill="#047857" font-family="monospace">GET</text>
+    <text x="700" y="24" fill="#1d4ed8" font-family="monospace">POST</text>
+    <text x="770" y="24" fill="#b45309" font-family="monospace">PATCH</text>
+    <text x="850" y="24" fill="#64748b">· /api 생략 · 인증 토큰 필요</text>
+  </g>
+
+  <!-- ===== Column A ===== -->
+  <!-- 로그인 -->
+  <g transform="translate(40,60)">
+    <rect width="540" height="124" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h528 a6,6 0 0 1 6,6 v24 h-540 z" fill="#10b981"/>
+    <text x="16" y="21" fill="#fff" font-size="14" font-weight="700">로그인</text>
+    <g font-family="monospace" font-size="13">
+      <text x="16" y="50" fill="#1d4ed8">POST  auth/oauth/kakao</text>
+      <text x="16" y="72" fill="#1d4ed8">POST  auth/oauth/google</text>
+      <text x="16" y="94" fill="#047857">GET   agreements/current?type=TOS</text>
+      <text x="16" y="116" fill="#1d4ed8">POST  me/agreements</text>
+    </g>
+  </g>
+
+  <!-- 도 상세 -->
+  <g transform="translate(40,202)">
+    <rect width="540" height="102" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h528 a6,6 0 0 1 6,6 v24 h-540 z" fill="#10b981"/>
+    <text x="16" y="21" fill="#fff" font-size="14" font-weight="700">도 상세 (강원도)</text>
+    <g font-family="monospace" font-size="13">
+      <text x="16" y="50" fill="#047857">GET   regions/:code</text>
+      <text x="16" y="72" fill="#047857">GET   regions/:code/places?status=&amp;page=</text>
+      <text x="16" y="94" fill="#047857">GET   regions/:code/recommended</text>
+    </g>
+  </g>
+
+  <!-- 인증 -->
+  <g transform="translate(40,322)">
+    <rect width="540" height="102" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h528 a6,6 0 0 1 6,6 v24 h-540 z" fill="#10b981"/>
+    <text x="16" y="21" fill="#fff" font-size="14" font-weight="700">인증 (촬영 → 제출 → 완료)</text>
+    <g font-family="monospace" font-size="13">
+      <text x="16" y="50" fill="#1d4ed8">POST  certifications/photos/presigned</text>
+      <text x="16" y="72" fill="#1d4ed8">POST  certifications  (GPS·구도·caption·공개)</text>
+      <text x="16" y="94" fill="#64748b">응답 → 점수+15 ×1.5 · 도감수집 · 70%→74%</text>
+    </g>
+  </g>
+
+  <!-- 마이 -->
+  <g transform="translate(40,442)">
+    <rect width="540" height="102" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h528 a6,6 0 0 1 6,6 v24 h-540 z" fill="#10b981"/>
+    <text x="16" y="21" fill="#fff" font-size="14" font-weight="700">마이페이지</text>
+    <g font-family="monospace" font-size="13">
+      <text x="16" y="50" fill="#047857">GET   me/profile  (Lv·EXP·순위)</text>
+      <text x="16" y="72" fill="#047857">GET   me/collections  (컬렉션 N/M)</text>
+      <text x="16" y="94" fill="#047857">GET   rankings?scope=NATIONAL&amp;period=</text>
+    </g>
+  </g>
+
+  <!-- ===== Column B ===== -->
+  <!-- 전체 지도 -->
+  <g transform="translate(620,60)">
+    <rect width="540" height="102" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h528 a6,6 0 0 1 6,6 v24 h-540 z" fill="#10b981"/>
+    <text x="16" y="21" fill="#fff" font-size="14" font-weight="700">홈 / 전체 지도</text>
+    <g font-family="monospace" font-size="13">
+      <text x="16" y="50" fill="#047857">GET   me/summary  (점수·전국순위·진행도)</text>
+      <text x="16" y="72" fill="#047857">GET   me/progress/sido  (시·도별 %)</text>
+      <text x="16" y="94" fill="#047857">GET   discovery/today  (오늘의 추천)</text>
+    </g>
+  </g>
+
+  <!-- 여행지 상세 -->
+  <g transform="translate(620,180)">
+    <rect width="540" height="124" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h528 a6,6 0 0 1 6,6 v24 h-540 z" fill="#10b981"/>
+    <text x="16" y="21" fill="#fff" font-size="14" font-weight="700">여행지 상세 (속초 영금정)</text>
+    <g font-family="monospace" font-size="13">
+      <text x="16" y="50" fill="#047857">GET   places/:id  (희소도·평점·태그·미션)</text>
+      <text x="16" y="72" fill="#7c3aed">GET   scoring/places/:id  (별·지역가중치·예상점수)</text>
+      <text x="16" y="94" fill="#047857">GET   places/:id/compositions  (구도추천)</text>
+      <text x="16" y="116" fill="#047857">GET   places/:id/certifications  (타인 인증샷)</text>
+    </g>
+  </g>
+
+  <!-- 도감 -->
+  <g transform="translate(620,322)">
+    <rect width="540" height="124" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h528 a6,6 0 0 1 6,6 v24 h-540 z" fill="#10b981"/>
+    <text x="16" y="21" fill="#fff" font-size="14" font-weight="700">여행 도감</text>
+    <g font-family="monospace" font-size="13">
+      <text x="16" y="50" fill="#047857">GET   me/dogam/overview  (전국 63%)</text>
+      <text x="16" y="72" fill="#047857">GET   me/dogam/regions  (지역별 + 잠금)</text>
+      <text x="16" y="94" fill="#047857">GET   me/dogam/themes  (테마/컬렉션)</text>
+      <text x="16" y="116" fill="#047857">GET   me/dogam/recent  (최근 수집)</text>
+    </g>
+  </g>
+
+  <!-- 공통 / 관리자 -->
+  <g transform="translate(620,464)">
+    <rect width="540" height="102" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h528 a6,6 0 0 1 6,6 v24 h-540 z" fill="#475569"/>
+    <text x="16" y="21" fill="#fff" font-size="14" font-weight="700">공통 / 관리자 (구현됨)</text>
+    <g font-family="monospace" font-size="13">
+      <text x="16" y="50" fill="#1d4ed8">POST  auth/refresh · logout</text>
+      <text x="16" y="72" fill="#047857">GET   auth/me</text>
+      <text x="16" y="94" fill="#b45309">*     admin/members · admins (관리자 JWT)</text>
+    </g>
+  </g>
+
+  <!-- 약관 (로딩 시 / 인증 시) -->
+  <g transform="translate(40,564)">
+    <rect width="540" height="124" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h528 a6,6 0 0 1 6,6 v24 h-540 z" fill="#d97706"/>
+    <text x="16" y="21" fill="#fff" font-size="14" font-weight="700">약관 (로딩 시 / 인증 시)</text>
+    <g font-family="monospace" font-size="13">
+      <text x="16" y="50" fill="#047857">GET   agreements/current?type=TOS|PRIVACY|CONTENT_LICENSE</text>
+      <text x="16" y="72" fill="#1d4ed8">POST  me/agreements   (동의 기록 → user_agreement)</text>
+      <text x="16" y="94" fill="#047857">GET   me/agreements   (내 동의 이력)</text>
+      <text x="16" y="116" fill="#64748b">로딩=TOS/PRIVACY · 인증=CONTENT_LICENSE(저작·사용) · locale별 본문</text>
+    </g>
+  </g>
+</svg>

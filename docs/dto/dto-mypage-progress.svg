@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 176" font-family="sans-serif">
+  <rect width="1000" height="176" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <path d="M0,6 a6,6 0 0 1 6,-6 h988 a6,6 0 0 1 6,6 v26 h-1000 z" fill="#10b981"/>
+  <text x="16" y="22" fill="#fff" font-size="14" font-weight="700">마이페이지 — 헤더 + 도감 진행률 탭 — DTO</text>
+  <g font-family="monospace" font-size="12" fill="#0f172a">
+    <text x="16" y="54"><tspan fill="#047857">GET</tspan> /me/profile   (공통 헤더: Lv·EXP / 도감 63% · 방문 102 · 전국 127위)</text>
+    <text x="16" y="74">    →  { handle, displayName, avatarUrl, level, exp, expForNextLevel, dogamPercent, visitedCount, nationalRank, totalUsers }</text>
+    <text x="16" y="102"><tspan fill="#047857">GET</tspan> /me/collections?cursor=&amp;limit=   (도감 진행률 탭: 컬렉션 N/M)</text>
+    <text x="16" y="122">    →  { overall{ collected, total }, items[{ id, title, filled, total, thumbnails[] }], nextCursor }</text>
+    <text x="16" y="150" fill="#94a3b8">전체 도감 진행 현황(102/161)=overall · 한강 피크닉 10/10 등=items · 헤더는 랭킹 탭과 공유</text>
+  </g>
+</svg>

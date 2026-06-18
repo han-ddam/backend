@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 170" font-family="sans-serif">
+  <rect width="820" height="170" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <path d="M0,6 a6,6 0 0 1 6,-6 h808 a6,6 0 0 1 6,6 v26 h-820 z" fill="#64748b"/>
+  <text x="16" y="22" fill="#fff" font-size="14" font-weight="700">앱 진입 / 지도 로딩 — DTO (신규 API 없음)</text>
+  <g font-family="monospace" font-size="12" fill="#0f172a">
+    <text x="16" y="54"><tspan fill="#047857">GET</tspan> /me/summary   (63% · 102/161)</text>
+    <text x="16" y="74">    →  { score, nationalRank, totalUsers, progress{percent,collected,total} }</text>
+    <text x="16" y="102"><tspan fill="#047857">GET</tspan> /me/progress/provinces   (지역별 핀: 서울·경기 1,842 …)</text>
+    <text x="16" y="122">    →  [ { provinceCode, name, percent, collected, total } ]</text>
+    <text x="16" y="150" fill="#94a3b8">홈/전체지도와 동일 데이터 프리로드 — 로딩 상태 화면, dto-home-map 재사용</text>
+  </g>
+</svg>

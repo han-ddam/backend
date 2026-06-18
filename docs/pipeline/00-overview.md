@@ -15,7 +15,9 @@
 | `00-overview.md` (이 문서) | 종합·결정로그·로드맵·현재상태 |
 | `01-planning.md` | 요구사항(FR), 화면(Figma) 반영 |
 | `02-design.md` | 아키텍처, 데이터모델, §12 추가설계(점수/이미지/컬렉션/약관) |
-| `docs/api-spec.md` (+ `.svg`) | 화면별 API 명세 |
+| `03-api-spec.md` ⭐ | **화면별 API/DTO 명세 (개발 기준)** — 요청·응답 DTO, 공통규약, 결정로그 |
+| `docs/dto/*.svg` | 화면별 DTO 카드(Figma import용, 12장) — `03-api-spec.md`와 동일 내용 |
+| `docs/api-spec.md` (+ `.svg`) | (구버전, 드리프트 있음) → `03-api-spec.md`로 대체 |
 | `docs/db-erd.svg` | ERD(현재 구현된 스키마) |
 
 ## 3. 핵심 결정 로그 (Decision Log)

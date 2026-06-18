@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 196" font-family="sans-serif">
+  <rect width="820" height="196" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <path d="M0,6 a6,6 0 0 1 6,-6 h808 a6,6 0 0 1 6,6 v26 h-820 z" fill="#10b981"/>
+  <text x="16" y="22" fill="#fff" font-size="14" font-weight="700">도 상세 (강원도) — DTO</text>
+  <g font-family="monospace" font-size="12" fill="#0f172a">
+    <text x="16" y="56"><tspan fill="#047857">GET</tspan> /regions/:code</text>
+    <text x="16" y="76">    →  { code, name, description, progress{percent,collected,total,remaining} }</text>
+    <text x="16" y="104"><tspan fill="#047857">GET</tspan> /regions/:code/places?status=ALL|VISITED|PLANNED&amp;cursor=&amp;limit=</text>
+    <text x="16" y="124">    →  { items[{placeId,name,address,imageUrl,visitStatus}], counts{all,visited,planned}, nextCursor }</text>
+    <text x="16" y="152"><tspan fill="#047857">GET</tspan> /regions/:code/recommended?limit=1   (다음 추천)</text>
+    <text x="16" y="172">    →  [ { placeId, name, address, imageUrl } ]</text>
+  </g>
+</svg>

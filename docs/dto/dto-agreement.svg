@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 196" font-family="sans-serif">
+  <rect width="820" height="196" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <path d="M0,6 a6,6 0 0 1 6,-6 h808 a6,6 0 0 1 6,6 v26 h-820 z" fill="#f59e0b"/>
+  <text x="16" y="22" fill="#fff" font-size="14" font-weight="700">약관 (로그인 시 / 마이페이지) — DTO</text>
+  <g font-family="monospace" font-size="12" fill="#0f172a">
+    <text x="16" y="56"><tspan fill="#047857">GET</tspan>  /agreements/current?type=TOS|PRIVACY|CONTENT_LICENSE</text>
+    <text x="16" y="76">     →  { id, type, version, title, body, required }   (locale별 본문)</text>
+    <text x="16" y="104"><tspan fill="#1d4ed8">POST</tspan> /me/agreements   (동의 기록 → user_agreement)</text>
+    <text x="16" y="124">     req { agreementId }  →  204</text>
+    <text x="16" y="152"><tspan fill="#047857">GET</tspan>  /me/agreements   (내 동의 이력)</text>
+    <text x="16" y="172">     →  [ { agreementId, type, version, acceptedAt } ]</text>
+  </g>
+</svg>

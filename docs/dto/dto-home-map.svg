@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 196" font-family="sans-serif">
+  <rect width="780" height="196" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <path d="M0,6 a6,6 0 0 1 6,-6 h768 a6,6 0 0 1 6,6 v26 h-780 z" fill="#10b981"/>
+  <text x="16" y="22" fill="#fff" font-size="14" font-weight="700">홈 / 전체 지도 — DTO</text>
+  <g font-family="monospace" font-size="12" fill="#0f172a">
+    <text x="16" y="56"><tspan fill="#047857">GET</tspan> /me/summary</text>
+    <text x="16" y="76">    →  { score, nationalRank, totalUsers, progress{percent,collected,total} }</text>
+    <text x="16" y="104"><tspan fill="#047857">GET</tspan> /me/progress/provinces   (시·도별 %)</text>
+    <text x="16" y="124">    →  [ { provinceCode, name, percent, collected, total } ]</text>
+    <text x="16" y="152"><tspan fill="#047857">GET</tspan> /discovery/today?limit=3   (오늘의 추천)</text>
+    <text x="16" y="172">    →  [ { placeId, name, address, imageUrl } ]</text>
+  </g>
+</svg>

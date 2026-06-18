@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 700" font-family="sans-serif">
+  <rect x="0" y="0" width="1180" height="700" fill="#f8fafc"/>
+  <text x="40" y="28" font-size="20" font-weight="700" fill="#0f172a">한땀 — DB ERD (구현된 스키마)</text>
+
+  <!-- ===== relationships (behind tables) ===== -->
+  <g stroke="#94a3b8" stroke-width="1.5" fill="none">
+    <path d="M340,150 H382 V120 H420"/>
+    <path d="M340,165 H372 V322 H420"/>
+    <path d="M340,415 H385 V532 H420"/>
+    <path d="M880,176 V210"/>
+    <path d="M1100,110 H1140 V80 H1100"/>
+  </g>
+  <g font-size="11" fill="#64748b">
+    <text x="350" y="112">1 — N</text>
+    <text x="350" y="330">1 — N</text>
+    <text x="350" y="540">1 — N</text>
+    <text x="886" y="200">1 — N</text>
+    <text x="1108" y="72">parent</text>
+  </g>
+
+  <!-- ===== users (blue) ===== -->
+  <g transform="translate(40,50)">
+    <rect width="300" height="222" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h288 a6,6 0 0 1 6,6 v24 h-300 z" fill="#2563eb"/>
+    <text x="14" y="20" fill="#fff" font-size="14" font-weight="700">users (회원)</text>
+    <g font-family="monospace" font-size="12" fill="#0f172a">
+      <text x="14" y="48">id             uuid          PK</text>
+      <text x="14" y="72">email          text          UK</text>
+      <text x="14" y="96">handle         text          UK</text>
+      <text x="14" y="120">display_name   text</text>
+      <text x="14" y="144">locale         locale</text>
+      <text x="14" y="168">status         user_status</text>
+      <text x="14" y="192">created_at     timestamptz</text>
+      <text x="14" y="216">updated_at     timestamptz</text>
+    </g>
+  </g>
+
+  <!-- ===== oauth_identity (blue) ===== -->
+  <g transform="translate(420,50)">
+    <rect width="320" height="150" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h308 a6,6 0 0 1 6,6 v24 h-320 z" fill="#2563eb"/>
+    <text x="14" y="20" fill="#fff" font-size="14" font-weight="700">oauth_identity</text>
+    <g font-family="monospace" font-size="12" fill="#0f172a">
+      <text x="14" y="48">id                uuid         PK</text>
+      <text x="14" y="72">user_id           uuid         FK</text>
+      <text x="14" y="96">provider          auth_provider</text>
+      <text x="14" y="120">provider_user_id  text  (UQ:provider)</text>
+      <text x="14" y="144">created_at        timestamptz</text>
+    </g>
+  </g>
+
+  <!-- ===== refresh_token (blue) ===== -->
+  <g transform="translate(420,250)">
+    <rect width="320" height="174" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h308 a6,6 0 0 1 6,6 v24 h-320 z" fill="#2563eb"/>
+    <text x="14" y="20" fill="#fff" font-size="14" font-weight="700">refresh_token</text>
+    <g font-family="monospace" font-size="12" fill="#0f172a">
+      <text x="14" y="48">id            uuid          PK</text>
+      <text x="14" y="72">user_id       uuid          FK</text>
+      <text x="14" y="96">token_hash    text          UK</text>
+      <text x="14" y="120">expires_at    timestamptz</text>
+      <text x="14" y="144">revoked_at    timestamptz?</text>
+      <text x="14" y="168">created_at    timestamptz</text>
+    </g>
+  </g>
+
+  <!-- ===== region (green) ===== -->
+  <g transform="translate(800,50)">
+    <rect width="300" height="126" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h288 a6,6 0 0 1 6,6 v24 h-300 z" fill="#059669"/>
+    <text x="14" y="20" fill="#fff" font-size="14" font-weight="700">region (시·도/시·군·구)</text>
+    <g font-family="monospace" font-size="12" fill="#0f172a">
+      <text x="14" y="48">code             varchar    PK</text>
+      <text x="14" y="72">parent_code      varchar?   FK</text>
+      <text x="14" y="96">boundary         geometry?</text>
+      <text x="14" y="120">is_declining_pop boolean</text>
+    </g>
+  </g>
+
+  <!-- ===== region_i18n (green) — language table ===== -->
+  <g transform="translate(800,210)">
+    <rect width="300" height="102" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h288 a6,6 0 0 1 6,6 v24 h-300 z" fill="#059669"/>
+    <text x="14" y="20" fill="#fff" font-size="14" font-weight="700">region_i18n (지역명 번역)</text>
+    <g font-family="monospace" font-size="12" fill="#0f172a">
+      <text x="14" y="48">region_code   varchar    PK,FK</text>
+      <text x="14" y="72">locale        locale     PK</text>
+      <text x="14" y="96">name          text</text>
+    </g>
+  </g>
+
+  <!-- ===== admin (purple) ===== -->
+  <g transform="translate(40,300)">
+    <rect width="300" height="222" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h288 a6,6 0 0 1 6,6 v24 h-300 z" fill="#7c3aed"/>
+    <text x="14" y="20" fill="#fff" font-size="14" font-weight="700">admin (관리자)</text>
+    <g font-family="monospace" font-size="12" fill="#0f172a">
+      <text x="14" y="48">id             uuid          PK</text>
+      <text x="14" y="72">email          text          UK</text>
+      <text x="14" y="96">password_hash  text  (argon2)</text>
+      <text x="14" y="120">name           text</text>
+      <text x="14" y="144">role           admin_role</text>
+      <text x="14" y="168">is_active      boolean</text>
+      <text x="14" y="192">created_at     timestamptz</text>
+      <text x="14" y="216">updated_at     timestamptz</text>
+    </g>
+  </g>
+
+  <!-- ===== admin_refresh_token (purple) ===== -->
+  <g transform="translate(420,460)">
+    <rect width="320" height="174" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h308 a6,6 0 0 1 6,6 v24 h-320 z" fill="#7c3aed"/>
+    <text x="14" y="20" fill="#fff" font-size="14" font-weight="700">admin_refresh_token</text>
+    <g font-family="monospace" font-size="12" fill="#0f172a">
+      <text x="14" y="48">id            uuid          PK</text>
+      <text x="14" y="72">admin_id      uuid          FK</text>
+      <text x="14" y="96">token_hash    text          UK</text>
+      <text x="14" y="120">expires_at    timestamptz</text>
+      <text x="14" y="144">revoked_at    timestamptz?</text>
+      <text x="14" y="168">created_at    timestamptz</text>
+    </g>
+  </g>
+
+  <!-- legend -->
+  <g font-size="12" fill="#475569">
+    <rect x="800" y="360" width="14" height="14" fill="#2563eb"/><text x="822" y="372">회원(member) 도메인</text>
+    <rect x="800" y="384" width="14" height="14" fill="#7c3aed"/><text x="822" y="396">관리자(admin) 도메인</text>
+    <rect x="800" y="408" width="14" height="14" fill="#059669"/><text x="822" y="420">지역(region) / PostGIS · i18n</text>
+    <text x="800" y="448" fill="#94a3b8">? = nullable, UQ = unique, PK/FK/UK = key</text>
+    <text x="800" y="468" fill="#94a3b8">번역 텍스트는 *_i18n (locale별 행) 으로 분리</text>
+  </g>
+</svg>

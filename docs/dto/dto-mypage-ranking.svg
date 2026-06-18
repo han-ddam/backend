@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 176" font-family="sans-serif">
+  <rect width="1000" height="176" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <path d="M0,6 a6,6 0 0 1 6,-6 h988 a6,6 0 0 1 6,6 v26 h-1000 z" fill="#10b981"/>
+  <text x="16" y="22" fill="#fff" font-size="14" font-weight="700">마이페이지 — 랭킹 탭 — DTO</text>
+  <g font-family="monospace" font-size="12" fill="#0f172a">
+    <text x="16" y="54"><tspan fill="#047857">GET</tspan> /rankings?scope=NATIONAL&amp;period=CUMULATIVE|MONTHLY&amp;cursor=   (전국 누적 / 이번 달)</text>
+    <text x="16" y="74">    →  { topPercent,                                  ← 전국 상위 1%</text>
+    <text x="16" y="94">         top3[{ rank, handle, score, badge, dogamPercent }],   ← 1·2·3위 카드</text>
+    <text x="16" y="114">         leaderboard{ items[{ rank, handle, score, dogamPercent }], nextCursor },   ← 124~127위 리스트</text>
+    <text x="16" y="134">         me{ rank, score, dogamPercent, pointsToNext } }   ← 내 순위(127위) · 다음 순위까지 18점</text>
+    <text x="16" y="162" fill="#94a3b8">헤더(프로필·3스탯)는 /me/profile — 도감 진행률 탭과 공유</text>
+  </g>
+</svg>

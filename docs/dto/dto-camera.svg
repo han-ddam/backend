@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 142" font-family="sans-serif">
+  <rect width="820" height="142" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <path d="M0,6 a6,6 0 0 1 6,-6 h808 a6,6 0 0 1 6,6 v26 h-820 z" fill="#64748b"/>
+  <text x="16" y="22" fill="#fff" font-size="14" font-weight="700">카메라 촬영 (영금정 인증) — DTO (신규 API 없음)</text>
+  <g font-family="monospace" font-size="12" fill="#0f172a">
+    <text x="16" y="54"><tspan fill="#047857">GET</tspan> /places/:id/compositions   (구도 가이드 + 참고 구도)</text>
+    <text x="16" y="74">    →  [ { seq, title, description, exampleImageUrl, source } ]</text>
+    <text x="16" y="102" fill="#94a3b8">가이드 문구("정자와 바다가…")=title/description · 참고 구도 썸네일=exampleImageUrl</text>
+    <text x="16" y="122" fill="#94a3b8">촬영은 디바이스 로컬 · 업로드(presigned)는 다음 인증하기 화면(dto-certification)에서</text>
+  </g>
+</svg>

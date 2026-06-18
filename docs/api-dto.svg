@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 940" font-family="sans-serif">
+  <rect x="0" y="0" width="1200" height="940" fill="#f8fafc"/>
+  <text x="40" y="30" font-size="20" font-weight="700" fill="#0f172a">한땀 — API DTO (요청 → 응답)</text>
+  <g font-size="12" font-family="monospace">
+    <text x="700" y="22" fill="#047857">GET</text>
+    <text x="760" y="22" fill="#1d4ed8">POST</text>
+    <text x="830" y="22" fill="#b45309">PATCH</text>
+    <text x="910" y="22" fill="#64748b">? = optional · 구현된 엔드포인트</text>
+  </g>
+
+  <!-- 공통 타입 -->
+  <g transform="translate(40,50)">
+    <rect width="1120" height="210" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h1108 a6,6 0 0 1 6,6 v24 h-1120 z" fill="#475569"/>
+    <text x="16" y="21" fill="#fff" font-size="14" font-weight="700">공통 타입</text>
+    <g font-family="monospace" font-size="12" fill="#0f172a">
+      <text x="16" y="50">tokens        = { accessToken, refreshToken }</text>
+      <text x="16" y="72">member        = { id, handle, displayName, email, status, createdAt }</text>
+      <text x="16" y="94">admin         = { id, email, name, role(SUPER_ADMIN|ADMIN), isActive, createdAt }</text>
+      <text x="16" y="116">placeDetail   = { id, regionCode, name, address, description, mission, tags[], rarityWeight, lat, lng }</text>
+      <text x="16" y="138">placeListItem = { id, name, address, tags[] }</text>
+      <text x="16" y="160">CreatePlaceDto= { regionCode, tourapiContentId?, lat?, lng?, basePoints, rarityWeight, tags?, translations[{locale,name,address?,description?,mission?}] }</text>
+      <text x="16" y="182">paged&lt;T&gt;      = { items:[T], total, page, limit }   (offset · 관리자)</text>
+      <text x="16" y="202">cursor&lt;T&gt;     = { items:[T], nextCursor }           (keyset · 앱 피드)</text>
+    </g>
+  </g>
+
+  <!-- 회원 인증 -->
+  <g transform="translate(40,276)">
+    <rect width="1120" height="118" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h1108 a6,6 0 0 1 6,6 v24 h-1120 z" fill="#2563eb"/>
+    <text x="16" y="21" fill="#fff" font-size="14" font-weight="700">회원 인증 (auth)</text>
+    <g font-family="monospace" font-size="12">
+      <text x="16" y="50"><tspan fill="#1d4ed8">POST</tspan>  /auth/oauth/{kakao|naver|google}   req { accessToken }  →  { user{id,handle,displayName}, tokens }</text>
+      <text x="16" y="72"><tspan fill="#1d4ed8">POST</tspan>  /auth/refresh   req { refreshToken }  →  tokens</text>
+      <text x="16" y="94"><tspan fill="#1d4ed8">POST</tspan>  /auth/logout    req { refreshToken }  →  204</text>
+      <text x="16" y="112"><tspan fill="#047857">GET</tspan>   /auth/me        →  { userId }</text>
+    </g>
+  </g>
+
+  <!-- 관리자 인증 -->
+  <g transform="translate(40,410)">
+    <rect width="1120" height="118" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h1108 a6,6 0 0 1 6,6 v24 h-1120 z" fill="#7c3aed"/>
+    <text x="16" y="21" fill="#fff" font-size="14" font-weight="700">관리자 인증 (admin/auth)</text>
+    <g font-family="monospace" font-size="12">
+      <text x="16" y="50"><tspan fill="#1d4ed8">POST</tspan>  /admin/auth/login    req { email, password }  →  { admin, tokens }</text>
+      <text x="16" y="72"><tspan fill="#1d4ed8">POST</tspan>  /admin/auth/refresh  req { refreshToken }  →  tokens</text>
+      <text x="16" y="94"><tspan fill="#1d4ed8">POST</tspan>  /admin/auth/logout   req { refreshToken }  →  204</text>
+      <text x="16" y="112"><tspan fill="#047857">GET</tspan>   /admin/auth/me       →  { adminId, role }</text>
+    </g>
+  </g>
+
+  <!-- 관리자 관리 -->
+  <g transform="translate(40,544)">
+    <rect width="1120" height="184" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h1108 a6,6 0 0 1 6,6 v24 h-1120 z" fill="#7c3aed"/>
+    <text x="16" y="21" fill="#fff" font-size="14" font-weight="700">관리자 — 회원/관리자 관리</text>
+    <g font-family="monospace" font-size="12">
+      <text x="16" y="50"><tspan fill="#047857">GET</tspan>   /admin/members              q { page, limit, q? }  →  paged&lt;member&gt;</text>
+      <text x="16" y="72"><tspan fill="#047857">GET</tspan>   /admin/members/:id          →  member</text>
+      <text x="16" y="94"><tspan fill="#b45309">PATCH</tspan> /admin/members/:id/status   req { status: ACTIVE|SUSPENDED }  →  member</text>
+      <text x="16" y="116"><tspan fill="#047857">GET</tspan>   /admin/admins               q { page, limit, q? }  →  paged&lt;admin&gt;</text>
+      <text x="16" y="138"><tspan fill="#047857">GET</tspan>   /admin/admins/:id           →  admin</text>
+      <text x="16" y="160"><tspan fill="#1d4ed8">POST</tspan>  /admin/admins               req { email, password, name, role? }  →  admin</text>
+      <text x="16" y="180"><tspan fill="#b45309">PATCH</tspan> /admin/admins/:id           req { name?, role?, isActive? }  →  admin</text>
+    </g>
+  </g>
+
+  <!-- 여행지 -->
+  <g transform="translate(40,744)">
+    <rect width="1120" height="140" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M0,6 a6,6 0 0 1 6,-6 h1108 a6,6 0 0 1 6,6 v24 h-1120 z" fill="#059669"/>
+    <text x="16" y="21" fill="#fff" font-size="14" font-weight="700">여행지 (places)</text>
+    <g font-family="monospace" font-size="12">
+      <text x="16" y="50"><tspan fill="#047857">GET</tspan>   /places/:id                 →  placeDetail  (locale 적용, 점수는 scoring 별도)</text>
+      <text x="16" y="72"><tspan fill="#047857">GET</tspan>   /places                     q { province, cursor?, limit? }  →  cursor&lt;placeListItem&gt;</text>
+      <text x="16" y="94"><tspan fill="#1d4ed8">POST</tspan>  /admin/places               req CreatePlaceDto  →  { id, regionCode, basePoints, rarityWeight }</text>
+      <text x="16" y="116"><tspan fill="#047857">GET</tspan>   /admin/places               q { province?, page, limit }  →  paged&lt;place&gt;</text>
+      <text x="16" y="134" fill="#94a3b8">📐 scoring/places/:id, compositions, certifications 등은 설계만(미구현)</text>
+    </g>
+  </g>
+</svg>
