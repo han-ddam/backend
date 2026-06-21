@@ -16,6 +16,7 @@
 | `01-planning.md` | 요구사항(FR), 화면(Figma) 반영 |
 | `02-design.md` | 아키텍처, 데이터모델, §12 추가설계(점수/이미지/컬렉션/약관) |
 | `03-api-spec.md` ⭐ | **화면별 API/DTO 명세 (개발 기준)** — 요청·응답 DTO, 공통규약, 결정로그 |
+| `04-data-sources.md` | **데이터 출처·시드 현황** — vworld(경계)/TourAPI(좌표), 시드 명령, 적재 상태 |
 | `docs/dto/*.svg` | 화면별 DTO 카드(Figma import용, 12장) — `03-api-spec.md`와 동일 내용 |
 | `docs/api-spec.md` (+ `.svg`) | (구버전, 드리프트 있음) → `03-api-spec.md`로 대체 |
 | `docs/db-erd.svg` | ERD(현재 구현된 스키마) |
@@ -52,6 +53,7 @@
 - auth (회원 소셜 로그인: 카카오/네이버 ✅, 구글 🔜) + JWT/가드
 - admin (별도 도메인: 이메일 로그인 + 회원/관리자 관리)
 - geo + region (PostGIS, level/region_trans) + 시드(seed:regions, seed:admin)
+- place 좌표 시드(seed:places, TourAPI areaBasedList) — 7,860행 적재 (경계/다국어/정기동기화는 미구현, `04-data-sources.md`)
 - 보안(helmet/CORS/Redis rate-limit/JWT HS256/리프레시 재사용탐지/로그인잠금)
 - Swagger(/api-docs)
 
