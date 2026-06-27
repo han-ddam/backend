@@ -65,6 +65,7 @@ sudo tailscale funnel status
 |---|---|
 | `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` | Tailscale **OAuth client**(admin → Settings → OAuth). ACL에 `tag:ci` 정의 필요 |
 | `DEPLOY_HOST` | 서버 tailnet 이름 또는 `100.x.x.x` |
+| `DEPLOY_PORT` | SSH 포트 (기본 22, 커스텀이면 예: `2222`) |
 | `DEPLOY_USER` | 서버 SSH 유저 |
 | `DEPLOY_DIR` | 배포 디렉터리(예: `/home/<user>/handdam`) |
 | `DEPLOY_SSH_KEY` | 배포용 **개인키**(서버 authorized_keys에 공개키 등록) |
