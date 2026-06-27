@@ -1,0 +1,63 @@
+# Production stack — app + worker + postgres(PostGIS) + redis on one host.
+# DB/Redis are NOT published to any public interface (internal docker network only).
+# The app is bound to 127.0.0.1:3000; Tailscale Funnel proxies it to the public
+# *.ts.net hostname (see docs/pipeline/05-deploy.md).
+#
+#   APP_IMAGE=ghcr.io/<owner>/<repo>:<tag>   (set by CI; required)
+#   secrets/runtime config come from ./.env  (POSTGRES_*, DATABASE_URL, JWT_*, ...)
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: handdam-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - handdam-pgdata:/var/lib/postgresql/data
+      # creates postgis + pg_trgm extensions on first init
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: handdam-redis
+    restart: unless-stopped
+    volumes:
+      - handdam-redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    image: ${APP_IMAGE}
+    container_name: handdam-app
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    ports:
+      # localhost only — Tailscale Funnel/Serve exposes it, not the public IP
+      - '127.0.0.1:3000:3000'
+
+  worker:
+    image: ${APP_IMAGE}
+    container_name: handdam-worker
+    restart: unless-stopped
+    env_file: .env
+    command: ['node', 'dist/worker.js']
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+volumes:
+  handdam-pgdata:
+  handdam-redisdata:

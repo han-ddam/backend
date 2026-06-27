@@ -17,6 +17,7 @@
 | `02-design.md` | 아키텍처, 데이터모델, §12 추가설계(점수/이미지/컬렉션/약관) |
 | `03-api-spec.md` ⭐ | **화면별 API/DTO 명세 (개발 기준)** — 요청·응답 DTO, 공통규약, 결정로그 |
 | `04-data-sources.md` | **데이터 출처·시드 현황** — vworld(경계)/TourAPI(좌표), 시드 명령, 적재 상태 |
+| `05-deploy.md` | **배포** — GitHub Actions + Tailscale Funnel + GHCR + compose(운영) |
 | `docs/dto/*.svg` | 화면별 DTO 카드(Figma import용, 12장) — `03-api-spec.md`와 동일 내용 |
 | `docs/api-spec.md` (+ `.svg`) | (구버전, 드리프트 있음) → `03-api-spec.md`로 대체 |
 | `docs/db-erd.svg` | ERD(현재 구현된 스키마) |
