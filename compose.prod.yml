@@ -45,8 +45,9 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
     ports:
-      # localhost only — Tailscale Funnel/Serve exposes it, not the public IP
-      - '127.0.0.1:3000:3000'
+      # localhost only — Tailscale Funnel/Serve exposes it, not the public IP.
+      # host port = APP_PORT (기본 3000, 공유 서버 충돌 시 .env 에서 변경). 컨테이너 내부는 3000 고정.
+      - '127.0.0.1:${APP_PORT:-3000}:3000'
 
   worker:
     image: ${APP_IMAGE}
