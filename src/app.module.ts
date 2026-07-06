@@ -12,6 +12,7 @@ import { UsersModule } from '@modules/users/users.module';
 import { AuthModule } from '@modules/auth/auth.module';
 import { AdminModule } from '@modules/admin/admin.module';
 import { PlacesModule } from '@modules/places/places.module';
+import { VisitsModule } from '@modules/visits/visits.module';
 import { AgreementsModule } from '@modules/agreements/agreements.module';
 
 /**
@@ -37,6 +38,7 @@ import { AgreementsModule } from '@modules/agreements/agreements.module';
     AuthModule,
     AdminModule,
     PlacesModule,
+    VisitsModule,
     AgreementsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
