@@ -18,7 +18,8 @@
 | **페이지네이션 — 앱 피드** | **커서(keyset)**. `?cursor=<opaque>&limit=N` → `{ items, nextCursor }`. `nextCursor=null`이면 끝. 커서는 `(createdAt,id)`의 base64url. |
 | **페이지네이션 — 관리자 목록** | **오프셋**. `?page=1&limit=N&q=` → `{ items, total, page, limit }`. |
 | **중복 방지(멱등)** | 점수·EXP·도감을 바꾸는 `POST /certifications`는 별도 키 없이 **`imageKey` 자연키로 dedup** — `UNIQUE(user_id, image_id)`. 재시도는 같은 `imageKey` 재전송, 중복 시 기존 결과 반환(§6). |
-| **에러 포맷** | `{ statusCode, message, error }` (Nest 기본). 검증 실패 422(zod), 인증 401, 권한 403, 충돌 409. |
+| **응답 포맷(envelope)** | 모든 응답을 `{ result, error }`로 감쌈. 성공 `{ result:<payload>, error:null }`, 실패 `{ result:null, error:{ code, message } }`. **아래 표의 응답 형태는 `result` 안의 payload** (envelope 생략 표기). 204(logout 등)는 본문 없음. |
+| **에러 포맷** | `{ result:null, error:{ code, message } }`. `code`=HTTP 상태명(`NOT_FOUND`/`BAD_REQUEST`/`UNAUTHORIZED`…). 검증 실패 400/422, 인증 401, 권한 403, 충돌 409. |
 | **시간** | 모든 timestamp는 ISO-8601 UTC. |
 
 ### 공통 타입
