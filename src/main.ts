@@ -8,6 +8,8 @@ import helmet from 'helmet';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import type { Env } from '@platform/config/env';
+import { ResponseInterceptor } from '@platform/http/response.interceptor';
+import { AllExceptionsFilter } from '@platform/http/all-exceptions.filter';
 
 /** HTTP entrypoint (API process). */
 async function bootstrap() {
@@ -30,6 +32,9 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ZodValidationPipe()); // zod-based, from nestjs-zod
+  // envelope: 성공 { result, error:null } / 실패 { result:null, error }
+  app.useGlobalInterceptors(new ResponseInterceptor());
+  app.useGlobalFilters(new AllExceptionsFilter());
   app.enableShutdownHooks();
 
   // --- API docs (Swagger) — off in production unless ENABLE_SWAGGER=1 ---
