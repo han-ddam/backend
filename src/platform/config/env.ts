@@ -20,6 +20,12 @@ export const envSchema = z.object({
   CORS_ORIGINS: z.string().default('*'),
 
   PROXIMITY_TOLERANCE_M: z.coerce.number().positive().default(150),
+
+  // Swagger는 production에서 기본 off. tunnel/스테이징에서 문서 UI가 필요하면 1로.
+  ENABLE_SWAGGER: z
+    .enum(['true', 'false', '1', '0'])
+    .default('false')
+    .transform((v) => v === 'true' || v === '1'),
 });
 
 export type Env = z.infer<typeof envSchema>;

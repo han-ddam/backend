@@ -32,8 +32,11 @@ async function bootstrap() {
   app.useGlobalPipes(new ZodValidationPipe()); // zod-based, from nestjs-zod
   app.enableShutdownHooks();
 
-  // --- API docs (Swagger) — disabled in production ---
-  if (config.get('NODE_ENV', { infer: true }) !== 'production') {
+  // --- API docs (Swagger) — off in production unless ENABLE_SWAGGER=1 ---
+  const swaggerEnabled =
+    config.get('NODE_ENV', { infer: true }) !== 'production' ||
+    config.get('ENABLE_SWAGGER', { infer: true });
+  if (swaggerEnabled) {
     patchNestJsSwagger(); // makes zod DTOs emit OpenAPI schemas
     const doc = new DocumentBuilder()
       .setTitle('한땀 API')
