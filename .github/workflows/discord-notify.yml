@@ -18,7 +18,7 @@ jobs:
           URL: ${{ github.event.head_commit.url }}
         run: |
           # build JSON safely with jq (handles quotes/newlines in commit messages)
-          CONTENT=$(printf '📦 **%s** `%s` 새 푸시\n👤 %s\n📝 %s\n🔗 %s' \
+          CONTENT=$(printf '**%s** `%s`\n%s: %s\n%s' \
             "$REPO" "$REF" "$AUTHOR" "$MSG" "$URL")
           jq -n --arg c "$CONTENT" '{content: $c}' \
             | curl -sf -H "Content-Type: application/json" -d @- "$WEBHOOK"
