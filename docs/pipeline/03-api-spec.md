@@ -17,7 +17,7 @@
 | **다국어** | `Accept-Language: ko|en|ja|zh` → 미들웨어가 `RequestContext.locale`로 변환. 콘텐츠 텍스트(지역명·여행지명·약관 등)는 locale에 맞는 `_trans` 행을 골라 응답하고, 없으면 **KO로 폴백**. |
 | **페이지네이션 — 앱 피드** | **커서(keyset)**. `?cursor=<opaque>&limit=N` → `{ items, nextCursor }`. `nextCursor=null`이면 끝. 커서는 `(createdAt,id)`의 base64url. |
 | **페이지네이션 — 관리자 목록** | **오프셋**. `?page=1&limit=N&q=` → `{ items, total, page, limit }`. |
-| **멱등성** | 점수·EXP·도감을 변경하는 `POST /certifications`는 헤더 `Idempotency-Key: <uuid>` 필수(§6 참고). |
+| **중복 방지(멱등)** | 점수·EXP·도감을 바꾸는 `POST /certifications`는 별도 키 없이 **`imageKey` 자연키로 dedup** — `UNIQUE(user_id, image_id)`. 재시도는 같은 `imageKey` 재전송, 중복 시 기존 결과 반환(§6). |
 | **에러 포맷** | `{ statusCode, message, error }` (Nest 기본). 검증 실패 422(zod), 인증 401, 권한 403, 충돌 409. |
 | **시간** | 모든 timestamp는 ISO-8601 UTC. |
 
@@ -128,9 +128,9 @@ cursor<T>     = { items:[T], nextCursor }           // keyset · 앱 피드
 | `GET /scoring/places/:id` | - | `{ action, basePoints, regionWeight, rarityWeight, eventMultiplier, estimatedPoints }` → 예상 점수 +15 / ×1.5 |
 | `GET /places/nearby` | `?lat=&lng=&radius=&limit=` | (§5.5) "위치 수정" 버튼 → 주변 관광지 목록 재선택 |
 | `POST /certifications/photos/presigned` | `{ contentType }` | `{ uploadUrl, imageKey }` (S3 직접 업로드) |
-| `POST /certifications` (header `Idempotency-Key`) | `{ placeId, imageKey, deviceLat, deviceLng, capturedAt, caption?, visibility:PRIVATE\|PUBLIC }` | §7 응답 |
+| `POST /certifications` | `{ placeId, imageKey, deviceLat, deviceLng, capturedAt, caption?, visibility:PRIVATE\|PUBLIC }` | §7 응답 |
 
-> **`Idempotency-Key`** = "인증 올리기" 탭 시 클라가 만든 UUID(재시도해도 동일). 점수·EXP·도감을 바꾸는 요청이라, 더블탭·자동 재시도·응답 유실로 같은 인증이 여러 번 처리되면 점수 중복 지급/도감 중복 등록됨 → 서버가 이 키로 "같은 시도"를 식별해 **처음 1번만 처리, 이후엔 저장된 결과를 반환(멱등, TTL 24h)**.
+> **중복 방지 = `imageKey` 자연키 dedup** (별도 멱등 헤더 없음). `imageKey`는 presigned 발급마다 유일 → **`UNIQUE(user_id, image_id)`** 로 중복 차단. 더블탭·자동 재시도·응답 유실로 같은 인증이 다시 와도 **DB 유니크가 막고 기존 인증 결과를 반환**(점수·도감 중복 없음). **재시도 계약**: presigned 다시 받지 말고 **같은 `imageKey`로 재전송**. 동시 요청도 DB 유니크가 레이스 처리.
 > 상단 장소명 옆 **"위치 수정"** → `GET /places/nearby`로 주변 목록 재선택(자동 특정 보정).
 > 화면의 ✅위치 확인·✅구도 확인은 **클라 프리뷰**(place 좌표 + compositions). 최종 판정은 제출 응답의 `proximityPass`/`compositionMatch`.
 
@@ -235,7 +235,7 @@ cursor<T>     = { items:[T], nextCursor }           // keyset · 앱 피드
 | `/me/summary`·`/me/progress/provinces`·`/discovery/today` | 📐 |
 | `/regions/:code`(상세)·`/regions/:code/places`·`recommended` | 📐 |
 | `/scoring/places/:id`·`/places/:id/compositions`·`/places/:id/certifications` | 📐 |
-| 인증 `presigned`·`POST /certifications`(+멱등) | 📐 |
+| 인증 `presigned`·`POST /certifications`(+imageKey dedup) | 📐 |
 | `/me/dogam/*`·`/me/profile`·`/me/collections`·`/rankings` | 📐 |
 
 ---
@@ -245,7 +245,7 @@ cursor<T>     = { items:[T], nextCursor }           // keyset · 앱 피드
 1. **`/me/summary` 단일 현황 출처** — 홈·도감 헤더·마이페이지가 모두 같은 `progress` 사용. 별도 `/me/dogam/overview`는 제거(중복 제거). 계산 원천은 `user_stat` 한 곳.
 2. **점수 분리** — place 응답에 점수를 박지 않고 `/scoring/places/:id`로 분리(룰/가중치/이벤트 배수 확장성).
 3. **인증 = 작성·제출 / 완료 2화면** — 작성(`dto-certify-submit`)에서 score-preview + presigned + `POST /certifications` 호출, 완료(`dto-certify-result`)는 그 응답을 렌더(신규 호출 없음).
-4. **멱등성 키** — 점수 지급 POST(`/certifications`)에 `Idempotency-Key` 헤더로 중복 제출 방지.
+4. **중복 방지** — 점수 지급 POST(`/certifications`)는 `imageKey` 자연키(`UNIQUE(user_id, image_id)`)로 dedup, 재시도 시 기존 결과 반환(헤더 멱등키 미사용).
 5. **위치·구도 체크** — 클라 프리뷰 + 서버 제출 응답(`proximityPass`/`compositionMatch`)이 최종 판정. 별도 검증 엔드포인트 불필요.
 6. **스플래시·카메라는 신규 API 없음** — 각각 홈 데이터/compositions 재사용.
 7. **페이지네이션** — 앱 피드는 커서(keyset), 관리자 목록은 오프셋.

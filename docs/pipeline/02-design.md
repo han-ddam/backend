@@ -258,7 +258,7 @@ certification                          -- immutable audit record (FR10,FR14)
   device_accuracy_m numeric null
   client_captured_at timestamptz
   exif_meta      jsonb null                      -- advisory only, untrusted (FR11)
-  idempotency_key text not null                  -- UNIQUE(user_id, idempotency_key) FR13
+  -- dedup via natural upload key: image_key(S3) is unique per presigned → UNIQUE(user_id, image_id) below (FR13)
   proximity_pass boolean                          -- synchronous fast-path result
   proximity_distance_m numeric
   landmark_pass  boolean null                      -- async; null until verified
@@ -267,7 +267,7 @@ certification                          -- immutable audit record (FR10,FR14)
   status         enum('PENDING','PROXIMITY_FAILED','ACCEPTED','REJECTED','NEEDS_REVIEW')
   scored_at      timestamptz null                 -- set once scoring applied (idempotent guard)
   created_at
-  UNIQUE(user_id, idempotency_key)                -- idempotency at DB level
+  UNIQUE(user_id, image_id)                       -- dedup at DB level (image_key natural key; retry reuses same imageKey)
   -- partial UNIQUE(user_id, spot_place_id) WHERE status='ACCEPTED'  => one visit per spot (A2)
 
 image                                  -- S3-backed asset
@@ -351,7 +351,7 @@ event_outbox    (id, type, payload jsonb, status enum('PENDING','SENT','DEAD'),
 - **`CREATE EXTENSION IF NOT EXISTS postgis;`** and **`pg_trgm`** — raw, in the first migration.
 - GIST: `place.coords`, `region.boundary`, `certification.device_point`.
 - GIN: `place_i18n.search_tsv` (FTS), `pg_trgm` GIN on `place_i18n.name` (matcher).
-- B-tree/unique: `certification(user_id, idempotency_key)` UNIQUE; partial unique accepted-visit per spot; `score_event.certification_id` UNIQUE; `place_external_ref` PK; `contest_submission(user_id, idempotency_key)` UNIQUE.
+- B-tree/unique: `certification(user_id, image_id)` UNIQUE (natural-key dedup); partial unique accepted-visit per spot; `score_event.certification_id` UNIQUE; `place_external_ref` PK; `contest_submission(user_id, idempotency_key)` UNIQUE.
 - Migrations: drizzle-kit generates the table DDL the team reviews; the spatial column types (`geometry(Point,4326)` via Drizzle `geometry`), the `CREATE EXTENSION`, all GIST/GIN DDL, the `search_tsv` generated-column expression, and partial unique indexes are added as **hand-authored raw SQL migration steps** that drizzle-kit cannot infer. See §7-Decision-B.
 
 ---
@@ -385,10 +385,10 @@ Selected core endpoints (representative, not exhaustive):
 - `GET /feeds/trending?window=WEEK` (FR9 이번 주 급상승) · `GET /feeds/newly-added`.
 
 ### Certification (FR10–FR14) — multipart
-- `POST /certifications` (multipart: `image`, `deviceLat`, `deviceLng`, `deviceAccuracyM`, `clientCapturedAt`, `spotPlaceId`, `method`, header `Idempotency-Key`).
+- `POST /certifications` (multipart: `image`, `deviceLat`, `deviceLng`, `deviceAccuracyM`, `clientCapturedAt`, `spotPlaceId`, `method`; dedup by natural `imageKey`).
   - Server records device GPS itself from the authenticated request payload (PRIMARY); EXIF parsed async/advisory.
   - Sync response 202 `CertificationDto{id, status, proximityPass, proximityDistanceM}`; or 422 `PROXIMITY_FAILED` if outside tolerance (**[BLOCKED: Q4]** tolerance/GPS-poor behavior → config `proximityToleranceM` default 150, GPS-poor → `NEEDS_REVIEW` not hard reject).
-  - Replay of same `Idempotency-Key` → 200 with original result (no double count).
+  - Replay of same `imageKey` → 200 with original result (no double count).
 - `GET /certifications/:id` → status incl. async `landmarkPass`, `moderationStatus`.
 - `POST /certifications/qr` (FR12): `{stampCode, deviceLat, deviceLng}`.
 
@@ -420,9 +420,9 @@ Selected core endpoints (representative, not exhaustive):
 
 ### 5.2 Certification happy path (FR10–FR14, handoff #2+#3) — the central flow
 ```
-1. Client POST /certifications (image + server-trusted device GPS + Idempotency-Key)
+1. Client POST /certifications (image + server-trusted device GPS; dedup by imageKey)
 2. certification.service:
-   a. UPSERT-guard on (user_id, idempotency_key); if exists → return prior result (FR13).
+   a. UPSERT-guard on (user_id, image_id); if exists → return prior result (FR13).
    b. Upload image to S3 (image-process queue makes variants); persist `image`(is_public=false).
    c. SYNC fast path: geo.spotsWithin / geo.distanceMeters(device_point, spot.coords)
         → proximity_pass = distance <= proximityToleranceM (PostGIS, ST_DWithin).
@@ -474,7 +474,7 @@ ACCEPTED ──(normal path scored)            // landmark advisory
 
 - **Single source of truth (handoff #2):** all score mutation flows through `scoring.applyCertification` → `score_event` ledger → one `visit.certified` event. No other module computes score. Rankings/progress/challenges are **projections**; they can be rebuilt by replaying `score_event` (reproducibility NFR).
 - **Idempotency (FR13, FR30):**
-  - HTTP layer: `Idempotency-Key` header → DB unique constraint; replay returns the stored prior response (200), never re-executes side effects.
+  - HTTP layer (certifications): natural-key dedup on `imageKey` → `UNIQUE(user_id, image_id)`; replay (same imageKey) returns the stored prior response (200), never re-executes side effects. Contest submissions still use an explicit `idempotency_key` (no natural upload key).
   - Scoring: `score_event.certification_id` UNIQUE + `certification.scored_at` short-circuit → applying twice is a no-op.
   - Event consumers: each consumer records `(consumer_name, score_event_id)` processed-marker (small `event_consumption` table or Redis SET) → at-least-once delivery is safe; consumers are idempotent.
 - **Transactions:** the score write + outbox insert happen in ONE PostgreSQL transaction (transactional outbox pattern) → no event is emitted unless the score persisted, and the score never persists without its event being durably queued. `outbox-relay` polls `event_outbox(status=PENDING)` and marks `SENT`; failures retried with backoff, exhausted → `DEAD` + alert.
@@ -482,7 +482,7 @@ ACCEPTED ──(normal path scored)            // landmark advisory
 - **Failure modes table:**
   | Failure | Handling |
   |---|---|
-  | Duplicate/retried cert submit | DB unique key → idempotent replay (FR13) |
+  | Duplicate/retried cert submit | DB unique key `(user_id, image_id)` → idempotent replay (FR13) |
   | GPS spoof via EXIF | EXIF untrusted/advisory; server device GPS is primary (FR11) |
   | GPS-poor environment | `NEEDS_REVIEW`, not hard reject [Q4 config] |
   | AI landmark provider down | normal path proceeds (advisory); contest submit blocked w/ clear error |

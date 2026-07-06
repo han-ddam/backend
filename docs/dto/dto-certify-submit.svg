@@ -9,11 +9,11 @@
     <text x="16" y="118">     →  [ { placeId, name, distanceM, ... } ]   (dto-nearby)</text>
     <text x="16" y="146"><tspan fill="#1d4ed8">POST</tspan> /certifications/photos/presigned   (S3 업로드 URL 발급)</text>
     <text x="16" y="166">     req { contentType }  →  { uploadUrl, imageKey }</text>
-    <text x="16" y="194"><tspan fill="#1d4ed8">POST</tspan> /certifications   (header: <tspan fill="#b45309">Idempotency-Key</tspan> · "인증 올리기")</text>
+    <text x="16" y="194"><tspan fill="#1d4ed8">POST</tspan> /certifications   ("인증 올리기")</text>
     <text x="16" y="214">     req { placeId, imageKey, deviceLat, deviceLng, capturedAt, caption?, visibility:PRIVATE|PUBLIC }</text>
   </g>
   <g font-family="sans-serif" font-size="11.5" fill="#475569">
-    <text x="16" y="240"><tspan fill="#b45309" font-weight="700">Idempotency-Key</tspan> = "인증 올리기" 탭 시 클라가 만든 UUID(재시도해도 동일) → 중복 제출 시 처음 1번만 처리(멱등).</text>
+    <text x="16" y="240"><tspan fill="#b45309" font-weight="700">중복 방지</tspan> = imageKey 자연키(발급마다 유일) → UNIQUE(user_id, image_id). 재시도는 같은 imageKey 재전송 → 중복 시 기존 결과 반환.</text>
     <text x="16" y="257">위치·구도 체크는 클라 프리뷰, 최종 판정은 완료 화면 응답(proximityPass/compositionMatch).</text>
   </g>
 </svg>
