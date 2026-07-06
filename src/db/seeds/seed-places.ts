@@ -3,7 +3,7 @@ import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
-import * as schema from '../src/db/schema';
+import * as schema from '../schema';
 
 /**
  * Seed the `place` table (관광지 좌표) from TourAPI areaBasedList2.

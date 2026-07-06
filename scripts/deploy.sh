@@ -21,6 +21,14 @@ echo "▶ migrate"
 $COMPOSE up -d postgres redis
 $COMPOSE run --rm app node dist/db/migrate.js
 
+# 시드는 원할 때만 — .env 의 SEED_ON_DEPLOY=1 일 때 (regions → places 순, FK)
+SEED=$(grep -E '^SEED_ON_DEPLOY=' .env 2>/dev/null | cut -d= -f2- | tr -d "\"' \t\r")
+if [ "$SEED" = "1" ]; then
+  echo "▶ seed (regions → places)"
+  $COMPOSE run --rm app node dist/db/seeds/seed-regions.js
+  $COMPOSE run --rm app node dist/db/seeds/seed-places.js
+fi
+
 echo "▶ up"
 $COMPOSE up -d
 

@@ -58,6 +58,7 @@ sudo tailscale funnel status
 | `REDIS_URL` | `redis://redis:6379` | **host=`redis`** |
 | `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` | 새로 생성 | `change-me-*` 금지 |
 | `TOURAPI_KEY` | data.go.kr 키 | 시드/동기화 |
+| `SEED_ON_DEPLOY` | `1`이면 배포 시 시드 실행 | 최초/갱신 때만 `1`, 평소 `0`(아래 §4) |
 | `CORS_ORIGINS` | 앱이라 보통 `*` 또는 미사용 | |
 
 ## 3. GitHub Secrets (Settings → Secrets and variables → Actions)
@@ -82,7 +83,9 @@ sudo tailscale funnel status
 1. 이미지 빌드 → GHCR push (`:sha`, `:latest`)
 2. 러너가 tailnet 합류(ephemeral)
 3. `compose.prod.yml`·`deploy.sh`·`docker/initdb` 서버로 scp
-4. 서버에서 `deploy.sh`: GHCR 로그인 → `pull` → **migrate** → `up -d` → prune
+4. 서버에서 `deploy.sh`: GHCR 로그인 → `pull` → **migrate** → (`SEED_ON_DEPLOY=1`이면 **seed** regions→places) → `up -d` → prune
+
+> **시드 플래그**: `.env`의 `SEED_ON_DEPLOY=1`일 때만 시드가 돌아감(멱등 upsert, 행 id 보존 → FK 안전, 어드민 점수/상태 미변경). 관광지 시드는 TourAPI 호출로 수 분 소요 → **최초 적재/계획된 갱신 때만 `1`**, 평소엔 `0`. 상세 정합성은 `04-data-sources.md`.
 
 ### 수동/롤백
 ```bash

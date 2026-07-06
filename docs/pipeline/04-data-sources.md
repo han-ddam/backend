@@ -22,8 +22,10 @@
 | 명령 | 스크립트 | 채우는 것 | env |
 |---|---|---|---|
 | `pnpm seed:admin <email> <pw> <name>` | `scripts/seed-admin.ts` | 첫 SUPER_ADMIN 계정 | DATABASE_URL |
-| `pnpm seed:regions` | `scripts/seed-regions.ts` | `region`+`region_trans` (TourAPI areaCode2) | TOURAPI_KEY |
-| `pnpm seed:places` | `scripts/seed-places.ts` | `place`+`place_trans` 좌표/이름/주소 (TourAPI areaBasedList2) | TOURAPI_KEY |
+| `pnpm seed:regions` | `src/db/seeds/seed-regions.ts` | `region`+`region_trans` (TourAPI areaCode2) | TOURAPI_KEY |
+| `pnpm seed:places` | `src/db/seeds/seed-places.ts` | `place`+`place_trans` 좌표/이름/주소 (TourAPI areaBasedList2) | TOURAPI_KEY |
+
+> regions/places 시드는 `src/db/seeds/`에 있어 **운영 이미지로도 컴파일**됨(`node dist/db/seeds/*.js`). 배포 시 `.env`의 `SEED_ON_DEPLOY=1`이면 `deploy.sh`가 regions→places 순으로 실행(`05-deploy.md` §4).
 
 - 모두 **upsert**(재실행 안전). `seed:places`는 `tourapi_content_id` 기준.
 - `seed:places` 옵션 env: `TOURAPI_CONTENT_TYPE_IDS`(기본 `12`=관광지, 콤마구분), `TOURAPI_PLACE_ROWS`(페이지당, 기본 100), `TOURAPI_PLACE_MAX`(타입별 최대, 테스트용).
@@ -50,9 +52,18 @@
 | vworld 지오코딩 보완 | — | ❌ 미구현 (선택) |
 | 관광지 정기 동기화 worker(ingestion-sync) | — | ❌ 미구현 (현재는 수동 시드) |
 
+## 4.5 재시드 정합성 (SEED_ON_DEPLOY / 반복 실행 시)
+
+- ✅ **FK 안전** — place는 `tourapi_content_id` 기준 upsert라 **행 uuid 보존** → 인증·컬렉션의 place FK 안 깨짐. 삭제도 안 함(사라진 관광지는 stale로 남을 뿐).
+- ✅ **어드민 큐레이션 보존** — 시드는 `lat/lng/region_code`만 갱신, `base_points`·`rarity_weight`·`tags`·`status` 미변경. `place_trans`도 `name`·`address`만 갱신(`description`·`mission` 미변경).
+- ⚠️ **이름/주소(KO) 덮어씀** — 어드민이 이름/주소를 편집했다면 재시드 시 TourAPI 값으로 되돌아감. (편집 보호는 추후 플래그/필드분리)
+- ⚠️ **진행도 분모 변동** — 새 place 유입 시 도감 진행률 %가 내려감(의미적). → 그래서 **매 배포 무조건 시드 X, 플래그로 의도했을 때만**.
+- ⚠️ **stale place** — TourAPI에서 사라진 관광지는 `ACTIVE`로 잔존. 추후 "이번 시드에 없으면 HIDDEN" 정리 여지.
+- 📌 **미결정** — 시드 place를 전부 `ACTIVE`(현재) vs `HIDDEN 후보 + 어드민 승격`. 현재는 전부 ACTIVE.
+
 ## 5. 남은 작업
 
-- **region.boundary 시드** — vworld/SGIS 시군구 경계 GeoJSON → `region.boundary` 적재(수기 SQL 마이그레이션 + GIST). GPS→지역 자동판정의 전제.
+- **region.boundary 시드** — vworld/SGIS 시군구 경계 GeoJSON → `region.boundary` 적재(수기 SQL 마이그레이션 + GIST). **단, place 중심 동선에선 불필요**(지역은 place.region_code에서 파생) — 자유 인증(등록 place 없이 GPS만으로 지역판정) 도입 시에만 필요.
 - **place 다국어** — TourAPI 언어별 서비스(EngService2/JpnService2/ChsService2)로 `place_trans` EN/JA/ZH 보강.
 - **정기 동기화** — 수동 시드 → `ingestion-sync` worker(스케줄)로 승격(신규/변경 반영).
 - **법무** — 유저 실시간 GPS는 개인위치정보(위치정보법). 참조 데이터(vworld/TourAPI)는 규제 무관. 근접 판정에만 쓰고 원본 좌표 미저장 방향 → 법무 확인.

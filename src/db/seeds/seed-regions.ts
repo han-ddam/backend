@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import * as schema from '../src/db/schema';
+import * as schema from '../schema';
 
 /**
  * Seed the `region` table (시·도 / 시·군·구) from TourAPI areaCode.
