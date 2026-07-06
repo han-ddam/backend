@@ -47,7 +47,8 @@ sudo tailscale funnel --bg 3000    # → https://<host>.<tailnet>.ts.net (443)
 sudo tailscale funnel status
 ```
 
-### 운영 `.env` (서버에만)
+### 운영 `.env` (서버에만) — 예시: `env.prod.example`
+> `cp env.prod.example .env` 후 값 채우기. host 는 서비스명(postgres/redis), 강한 값은 `openssl rand -hex 24`.
 | 키 | 값 | 비고 |
 |---|---|---|
 | `NODE_ENV` | `production` | |
