@@ -9,7 +9,7 @@ import {
 import type { Response } from 'express';
 
 /**
- * 모든 예외를 `{ result:null, error:{ code, message } }` 로 통일.
+ * 모든 예외를 `{ error:{ code, message } }` 로 통일 (성공은 result만, 실패는 error만).
  * - code = HTTP 상태 이름 (NOT_FOUND, BAD_REQUEST, UNAUTHORIZED ...)
  * - 예상치 못한 에러는 500 + 로그, 내부 정보는 노출하지 않음.
  */
@@ -38,6 +38,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       this.logger.error(exception);
     }
 
-    res.status(status).json({ result: null, error: { code, message } });
+    res.status(status).json({ error: { code, message } });
   }
 }

@@ -46,8 +46,8 @@ async function bootstrap() {
     const doc = new DocumentBuilder()
       .setTitle('한땀 API')
       .setDescription(
-        '한땀 백엔드 API 문서. 모든 응답은 { result, error } 로 감쌈 — ' +
-          '성공: { result:<payload>, error:null }, 실패: { result:null, error:{ code, message } }.',
+        '한땀 백엔드 API 문서. 성공은 { result:<payload> }, 실패는 { error:{ code, message } } — ' +
+          '성공엔 error 없음, 실패엔 result 없음.',
       )
       .setVersion('0.1')
       .addBearerAuth() // JWT access token (member & admin)
