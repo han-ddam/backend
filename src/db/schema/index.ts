@@ -7,3 +7,4 @@ export * from './admin';
 export * from './regions';
 export * from './places';
 export * from './agreements';
+export * from './visits';
