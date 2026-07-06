@@ -45,7 +45,10 @@ async function bootstrap() {
     patchNestJsSwagger(); // makes zod DTOs emit OpenAPI schemas
     const doc = new DocumentBuilder()
       .setTitle('한땀 API')
-      .setDescription('한땀 백엔드 API 문서')
+      .setDescription(
+        '한땀 백엔드 API 문서. 모든 응답은 { result, error } 로 감쌈 — ' +
+          '성공: { result:<payload>, error:null }, 실패: { result:null, error:{ code, message } }.',
+      )
       .setVersion('0.1')
       .addBearerAuth() // JWT access token (member & admin)
       // Accept-Language exposed in the Authorize dialog (set once, applied to all requests)
