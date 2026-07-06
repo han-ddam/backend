@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ReqContext } from '@platform/context/req-context.decorator';
 import type { RequestContext } from '@platform/context/request-context';
 import { PlacesService } from './places.service';
@@ -12,6 +12,9 @@ export class PlacesController {
 
   /** 도(province) 내 여행지 목록 — cursor 페이지네이션, locale 적용. */
   @Get()
+  @ApiQuery({ name: 'province', required: true, type: String })
+  @ApiQuery({ name: 'cursor', required: false, type: String })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   list(@Query() q: PlaceListQueryDto, @ReqContext() ctx: RequestContext) {
     return this.places.listByProvince({
       province: q.province,
