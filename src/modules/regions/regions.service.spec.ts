@@ -66,6 +66,20 @@ describe('RegionsService', () => {
       expect(out.counts).toEqual({ all: 5, visited: 1, planned: 0 });
       expect(out.nextCursor).toBeNull();
     });
+
+    it('guest + onlyVisited short-circuits to an empty page instead of listing unvisited places', async () => {
+      repo.countPlaces.mockResolvedValue(5);
+      const out = await service.listPlaces({
+        code: '32', userId: null, onlyVisited: true, locale: 'KO', limit: 20,
+      });
+      expect(out).toEqual({
+        items: [],
+        counts: { all: 5, visited: 0, planned: 0 },
+        nextCursor: null,
+      });
+      expect(repo.listPlaces).not.toHaveBeenCalled();
+      expect(repo.placeTransForMany).not.toHaveBeenCalled();
+    });
   });
 
   describe('listRecommended', () => {

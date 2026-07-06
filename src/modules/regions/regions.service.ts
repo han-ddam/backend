@@ -59,6 +59,12 @@ export class RegionsService {
     limit: number;
   }): Promise<RegionPlacesPage> {
     const limit = Math.min(Math.max(params.limit, 1), 100);
+    if (params.onlyVisited && !params.userId) {
+      // Guests have zero visits by definition, so the "visited only" filter
+      // must yield an empty page rather than falling back to all places.
+      const all = await this.repo.countPlaces(params.code);
+      return { items: [], counts: { all, visited: 0, planned: 0 }, nextCursor: null };
+    }
     const rows = await this.repo.listPlaces({
       code: params.code,
       userId: params.userId,
