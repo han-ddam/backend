@@ -163,13 +163,29 @@ export class PlacesService {
   }
 
   /** Admin offset list. */
-  async adminList(params: { province?: string; page: number; limit: number }) {
+  async adminList(params: {
+    province?: string;
+    status?: PlaceStatus;
+    page: number;
+    limit: number;
+  }) {
     const { rows, total } = await this.repo.listAll({
       province: params.province,
+      status: params.status,
       limit: params.limit,
       offset: (params.page - 1) * params.limit,
     });
     return { items: rows, total, page: params.page, limit: params.limit };
+  }
+
+  /** 어드민 검수 — 사용자 제출 장소 승인(ACTIVE)/반려(HIDDEN). */
+  async setPlaceStatus(
+    id: string,
+    status: 'ACTIVE' | 'HIDDEN',
+  ): Promise<{ id: string; status: PlaceStatus }> {
+    const row = await this.repo.setStatus(id, status);
+    if (!row) throw new NotFoundException('Place not found');
+    return { id: row.id, status: row.status as PlaceStatus };
   }
 
   /** locale 행 우선, 없으면 KO 폴백. */

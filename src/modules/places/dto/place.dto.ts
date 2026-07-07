@@ -33,9 +33,14 @@ export class PlaceListQueryDto extends createZodDto(
 export class AdminPlaceListQueryDto extends createZodDto(
   z.object({
     province: z.string().optional(),
+    status: z.enum(['ACTIVE', 'HIDDEN', 'PENDING_REVIEW']).optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),
   }),
+) {}
+
+export class UpdatePlaceStatusDto extends createZodDto(
+  z.object({ status: z.enum(['ACTIVE', 'HIDDEN']) }),
 ) {}
 
 export class SubmitUserPlaceDto extends createZodDto(

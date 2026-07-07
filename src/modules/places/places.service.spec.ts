@@ -15,6 +15,7 @@ describe('PlacesService', () => {
       listAll: jest.fn(),
       create: jest.fn(),
       nearestRegionCode: jest.fn(),
+      setStatus: jest.fn(),
     };
     let seq = 0;
     id = { generate: jest.fn(() => `id-${++seq}`) };
@@ -139,6 +140,22 @@ describe('PlacesService', () => {
         service.submitUserPlace('u1', { name: 'x', lat: 37.0, lng: 127.0 }),
       ).rejects.toThrow('db down');
       expect(repo.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('setPlaceStatus', () => {
+    it('updates status and returns id/status', async () => {
+      repo.setStatus.mockResolvedValue({ id: 'p1', status: 'ACTIVE' });
+      const out = await service.setPlaceStatus('p1', 'ACTIVE');
+      expect(repo.setStatus).toHaveBeenCalledWith('p1', 'ACTIVE');
+      expect(out).toEqual({ id: 'p1', status: 'ACTIVE' });
+    });
+
+    it('throws NotFound when place does not exist', async () => {
+      repo.setStatus.mockResolvedValue(undefined);
+      await expect(service.setPlaceStatus('nope', 'HIDDEN')).rejects.toThrow(
+        'Place not found',
+      );
     });
   });
 });

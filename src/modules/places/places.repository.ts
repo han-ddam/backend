@@ -104,10 +104,14 @@ export class PlacesRepository {
     limit: number;
     offset: number;
     province?: string;
+    status?: PlaceStatus;
   }): Promise<{ rows: Place[]; total: number }> {
-    const where = params.province
-      ? like(places.regionCode, `${params.province}\\_%`)
-      : undefined;
+    const conds = [];
+    if (params.province) {
+      conds.push(like(places.regionCode, `${params.province}\\_%`));
+    }
+    if (params.status) conds.push(eq(places.status, params.status));
+    const where = conds.length > 0 ? and(...conds) : undefined;
     const rows = await this.db
       .select()
       .from(places)
@@ -120,6 +124,18 @@ export class PlacesRepository {
       .from(places)
       .where(where);
     return { rows, total: Number(value) };
+  }
+
+  async setStatus(
+    id: string,
+    status: 'ACTIVE' | 'HIDDEN',
+  ): Promise<{ id: string; status: string } | undefined> {
+    const [row] = await this.db
+      .update(places)
+      .set({ status, updatedAt: sql`now()` })
+      .where(eq(places.id, id))
+      .returning({ id: places.id, status: places.status });
+    return row;
   }
 
   async create(
