@@ -15,6 +15,9 @@ services:
       - handdam-pgdata:/var/lib/postgresql/data
       # creates postgis + pg_trgm extensions on first init
       - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    ports:
+      # 서버 localhost에만 노출(공개 X). 노트북에서는 SSH 터널로 접속.
+      - '127.0.0.1:5432:5432'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: 5s
