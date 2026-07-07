@@ -35,17 +35,25 @@ import * as schema from '../schema';
  *   place_trans(LOCALE)만 upsert한다. 매칭 실패 시 skip.
  *
  * EN 실행 예:
- *   TOURAPI_LOCALE=EN \
- *   TOURAPI_AREABASED_URL=https://apis.data.go.kr/B551011/EngService2/areaBasedList2 \
- *   TOURAPI_CONTENT_TYPE_IDS=76 \
- *   node dist/db/seeds/seed-places.js
+ *   TOURAPI_LOCALE=EN pnpm seed:places
  */
 const LOCALE = (process.env.TOURAPI_LOCALE ?? 'KO') as 'KO' | 'EN' | 'JA' | 'ZH';
-const BASE =
-  process.env.TOURAPI_AREABASED_URL ??
-  'https://apis.data.go.kr/B551011/KorService2/areaBasedList2';
+
+const LOCALE_DEFAULTS: Record<string, { url: string; typeIds: string }> = {
+  KO: {
+    url: 'https://apis.data.go.kr/B551011/KorService2/areaBasedList2',
+    typeIds: '12',
+  },
+  EN: {
+    url: 'https://apis.data.go.kr/B551011/EngService2/areaBasedList2',
+    typeIds: '76',
+  },
+};
+
+const defaults = LOCALE_DEFAULTS[LOCALE] ?? LOCALE_DEFAULTS.KO;
+const BASE = process.env.TOURAPI_AREABASED_URL ?? defaults.url;
 const KEY = process.env.TOURAPI_KEY;
-const CONTENT_TYPE_IDS = (process.env.TOURAPI_CONTENT_TYPE_IDS ?? '12')
+const CONTENT_TYPE_IDS = (process.env.TOURAPI_CONTENT_TYPE_IDS ?? defaults.typeIds)
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);

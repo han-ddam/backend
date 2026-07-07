@@ -27,7 +27,9 @@
     "seed:admin": "ts-node -r tsconfig-paths/register scripts/seed-admin.ts",
     "seed:regions": "ts-node -r tsconfig-paths/register src/db/seeds/seed-regions.ts",
     "seed:regions:en": "ts-node -r tsconfig-paths/register src/db/seeds/seed-region-names-en.ts",
+    "seed:regions:all": "pnpm seed:regions && pnpm seed:regions:en",
     "seed:places": "ts-node -r tsconfig-paths/register src/db/seeds/seed-places.ts",
+    "seed:places:all": "pnpm seed:places && TOURAPI_LOCALE=EN pnpm seed:places",
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down"
   },
