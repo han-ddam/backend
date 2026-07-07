@@ -45,6 +45,14 @@ export interface CreatePlaceCmd {
   translations: PlaceTransInput[]; // KO 필수
 }
 
+export interface SubmitUserPlaceCmd {
+  name: string;
+  address?: string;
+  lat: number;
+  lng: number;
+  description?: string;
+}
+
 @Injectable()
 export class PlacesService {
   constructor(
@@ -125,6 +133,33 @@ export class PlacesService {
       },
       cmd.translations,
     );
+  }
+
+  /** 사용자 장소 제출 — 검수 대기(PENDING_REVIEW), 지역은 최근접 장소 상속. */
+  async submitUserPlace(
+    userId: string,
+    cmd: SubmitUserPlaceCmd,
+  ): Promise<{ placeId: string; status: 'PENDING_REVIEW'; regionCode: string }> {
+    const regionCode = await this.repo.nearestRegionCode(cmd.lat, cmd.lng, 10000);
+    if (!regionCode) {
+      throw new BadRequestException('지역을 판정할 수 없는 좌표입니다');
+    }
+    const place = await this.repo.create(
+      {
+        id: this.id.generate(),
+        regionCode,
+        tourapiContentId: null,
+        lat: cmd.lat,
+        lng: cmd.lng,
+        basePoints: 0,
+        rarityWeight: '1.00',
+        tags: [],
+        status: 'PENDING_REVIEW',
+        createdBy: userId,
+      },
+      [{ locale: 'KO', name: cmd.name, address: cmd.address, description: cmd.description }],
+    );
+    return { placeId: place.id, status: 'PENDING_REVIEW', regionCode };
   }
 
   /** Admin offset list. */

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, inArray, like, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, like, lt, or, sql } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import { decodeCursor } from '@platform/pagination/cursor';
 import {
@@ -23,6 +23,8 @@ export interface CreatePlaceInput {
   basePoints: number;
   rarityWeight: string; // numeric as string
   tags: string[];
+  status?: PlaceStatus; // 생략 시 DB 기본값(ACTIVE) — 어드민 생성 경로용
+  createdBy?: string | null; // 사용자 제출 장소의 등록자 (어드민/시드는 생략 → NULL)
 }
 
 export interface PlaceTransInput {
@@ -136,6 +138,8 @@ export class PlacesRepository {
           basePoints: input.basePoints,
           rarityWeight: input.rarityWeight,
           tags: input.tags,
+          ...(input.status !== undefined ? { status: input.status } : {}),
+          ...(input.createdBy !== undefined ? { createdBy: input.createdBy } : {}),
         })
         .returning();
       await tx.insert(placeTrans).values(
@@ -150,5 +154,29 @@ export class PlacesRepository {
       );
       return place;
     });
+  }
+
+  /** 좌표 기준 radiusM 내 최근접 ACTIVE 장소의 시·군·구 코드 (없으면 null). */
+  async nearestRegionCode(
+    lat: number,
+    lng: number,
+    radiusM: number,
+  ): Promise<string | null> {
+    const target = sql`ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography`;
+    const placePoint = sql`ST_SetSRID(ST_MakePoint(${places.lng}, ${places.lat}), 4326)::geography`;
+    const [row] = await this.db
+      .select({ regionCode: places.regionCode })
+      .from(places)
+      .where(
+        and(
+          eq(places.status, 'ACTIVE'),
+          isNotNull(places.lat),
+          isNotNull(places.lng),
+          sql`ST_DWithin(${placePoint}, ${target}, ${radiusM})`,
+        ),
+      )
+      .orderBy(sql`ST_Distance(${placePoint}, ${target})`)
+      .limit(1);
+    return row?.regionCode ?? null;
   }
 }

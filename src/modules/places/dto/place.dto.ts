@@ -37,3 +37,13 @@ export class AdminPlaceListQueryDto extends createZodDto(
     limit: z.coerce.number().int().min(1).max(100).default(20),
   }),
 ) {}
+
+export class SubmitUserPlaceDto extends createZodDto(
+  z.object({
+    name: z.string().min(1).max(100).describe('장소 이름'),
+    address: z.string().max(200).optional().describe('주소 (선택)'),
+    lat: z.number().min(33).max(39).describe('위도 (한국 범위)'),
+    lng: z.number().min(124).max(132).describe('경도 (한국 범위)'),
+    description: z.string().max(500).optional().describe('설명 (선택)'),
+  }),
+) {}
