@@ -200,7 +200,7 @@ async function main() {
           select p.id as id
           from place p
           join place_trans t on t.place_id = p.id and t.locale = 'KO'
-          where t.name = ${ko} and p.region_code like ${p.areaCode + '\\_%'}
+          where t.name = ${ko} and p.region_code like ${p.areaCode + '\\_%'} and p.status = 'ACTIVE'
         `);
         if (rows.length === 1) {
           await upsertTrans(rows[0].id, p);
