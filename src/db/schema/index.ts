@@ -8,3 +8,4 @@ export * from './regions';
 export * from './places';
 export * from './agreements';
 export * from './visits';
+export * from './scoring';

@@ -71,6 +71,13 @@
       "when": 1783362463711,
       "tag": "0009_aromatic_titanium_man",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783425091024,
+      "tag": "0010_scoring_policy",
+      "breakpoints": true
     }
   ]
 }
