@@ -22,7 +22,25 @@ import * as schema from '../schema';
  *   TOURAPI_CONTENT_TYPE_IDS   (선택, 기본 '12'=관광지. 콤마구분: '12,14,25')
  *   TOURAPI_PLACE_ROWS         (선택, 페이지당 행수, 기본 100)
  *   TOURAPI_PLACE_MAX          (선택, 타입별 최대 처리 건수 — 테스트용)
+ *   TOURAPI_LOCALE             (선택, 기본 'KO'. KO|EN|JA|ZH)
+ *
+ * ## Locale-aware 동작 (TOURAPI_LOCALE)
+ *
+ * - `KO`(기본): 기존 동작 그대로 — place row를 신규 upsert하고 place_trans(KO)를 채움.
+ * - `EN`/`JA`/`ZH`: **place row를 새로 만들지 않는다.** EngService2(등 외국어 서비스)의
+ *   contentId는 국문과 다르고(예: KOR 2740067 ↔ ENG 3091770), contentTypeId 체계도
+ *   다르다(관광지: 국문 12 ↔ 영문 76 — 실행 시 TOURAPI_CONTENT_TYPE_IDS를 꼭 맞출 것).
+ *   대신 영문 title이 한글 원명을 마지막 괄호로 포함하는 규칙
+ *   (`"Baengnokdam Lake (한라산 백록담)"`)을 이용해 기존 KO place를 찾아
+ *   place_trans(LOCALE)만 upsert한다. 매칭 실패 시 skip.
+ *
+ * EN 실행 예:
+ *   TOURAPI_LOCALE=EN \
+ *   TOURAPI_AREABASED_URL=https://apis.data.go.kr/B551011/EngService2/areaBasedList2 \
+ *   TOURAPI_CONTENT_TYPE_IDS=76 \
+ *   node dist/db/seeds/seed-places.js
  */
+const LOCALE = (process.env.TOURAPI_LOCALE ?? 'KO') as 'KO' | 'EN' | 'JA' | 'ZH';
 const BASE =
   process.env.TOURAPI_AREABASED_URL ??
   'https://apis.data.go.kr/B551011/KorService2/areaBasedList2';
@@ -42,6 +60,7 @@ interface PlaceItem {
   address: string | null;
   lat: number | null;
   lng: number | null;
+  areaCode: string | null;
   regionCode: string | null;
 }
 
@@ -92,6 +111,7 @@ async function fetchPage(
         address: i.addr1 ? String(i.addr1).trim() : null,
         lat: num(i.mapy),
         lng: num(i.mapx),
+        areaCode: areacode,
         regionCode: areacode && sigungu ? `${areacode}_${sigungu}` : null,
       };
     });
@@ -110,13 +130,14 @@ async function main() {
   }
 
   console.log(`endpoint: ${BASE}`);
+  console.log(`locale: ${LOCALE}`);
   console.log(`contentTypeIds: ${CONTENT_TYPE_IDS.join(', ')} · rows/page: ${ROWS}`);
   console.log(`key: 길이 ${KEY.length}, ${KEY.slice(0, 4)}...${KEY.slice(-4)}`);
 
   const client = postgres(dbUrl, { max: 1 });
   const db = drizzle(client, { schema });
   try {
-    // FK 보호: 등록 가능한 DISTRICT region code 집합
+    // FK 보호: 등록 가능한 DISTRICT region code 집합 (KO 신규 등록 시에만 사용)
     const regionRows = await db
       .select({ code: schema.regions.code })
       .from(schema.regions)
@@ -127,7 +148,8 @@ async function main() {
     }
     console.log(`유효 DISTRICT region ${validRegions.size}개`);
 
-    const upsertPlace = async (p: PlaceItem) => {
+    // KO: 기존 동작 — place 신규 upsert + place_trans(KO) 채움.
+    const upsertPlaceKo = async (p: PlaceItem) => {
       const [row] = await db
         .insert(schema.places)
         .values({
@@ -151,7 +173,63 @@ async function main() {
         .insert(schema.placeTrans)
         .values({
           placeId: row.id,
-          locale: 'KO',
+          locale: LOCALE,
+          name: p.title,
+          address: p.address,
+        })
+        .onConflictDoUpdate({
+          target: [schema.placeTrans.placeId, schema.placeTrans.locale],
+          set: { name: p.title, address: p.address },
+        });
+    };
+
+    // non-KO: place row는 신규 생성하지 않음 — 기존 KO place를 이름/좌표로 매칭해
+    // place_trans(LOCALE)만 upsert. 매칭 실패 시 skip.
+    const matchExistingPlace = async (p: PlaceItem): Promise<'byName' | 'byCoord' | null> => {
+      const ko = p.title.match(/\(([^()]*)\)\s*$/)?.[1]?.trim();
+      if (ko && p.areaCode) {
+        const rows = await db.execute<{ id: string }>(sql`
+          select p.id as id
+          from place p
+          join place_trans t on t.place_id = p.id and t.locale = 'KO'
+          where t.name = ${ko} and p.region_code like ${p.areaCode + '\\_%'}
+        `);
+        if (rows.length === 1) {
+          await upsertTrans(rows[0].id, p);
+          return 'byName';
+        }
+      }
+      if (p.lat != null && p.lng != null) {
+        const rows = await db.execute<{ id: string }>(sql`
+          select id
+          from place
+          where status = 'ACTIVE'
+            and lat is not null and lng is not null
+            and ST_DWithin(
+              ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography,
+              ST_SetSRID(ST_MakePoint(${p.lng}, ${p.lat}), 4326)::geography,
+              100
+            )
+          order by ST_Distance(
+            ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography,
+            ST_SetSRID(ST_MakePoint(${p.lng}, ${p.lat}), 4326)::geography
+          )
+          limit 1
+        `);
+        if (rows.length === 1) {
+          await upsertTrans(rows[0].id, p);
+          return 'byCoord';
+        }
+      }
+      return null;
+    };
+
+    const upsertTrans = async (placeId: string, p: PlaceItem) => {
+      await db
+        .insert(schema.placeTrans)
+        .values({
+          placeId,
+          locale: LOCALE,
           name: p.title,
           address: p.address,
         })
@@ -162,6 +240,8 @@ async function main() {
     };
 
     let grandUpserted = 0;
+    let grandByName = 0;
+    let grandByCoord = 0;
     let grandSkipped = 0;
     for (const ctid of CONTENT_TYPE_IDS) {
       const first = await fetchPage(ctid, 1);
@@ -170,6 +250,8 @@ async function main() {
 
       let processed = 0;
       let upserted = 0;
+      let byName = 0;
+      let byCoord = 0;
       let skipped = 0;
       let page = 1;
       let items = first.items;
@@ -177,22 +259,43 @@ async function main() {
         for (const p of items) {
           if (processed >= total) break;
           processed++;
-          if (!p.lat || !p.lng || !p.regionCode || !validRegions.has(p.regionCode)) {
-            skipped++;
-            continue;
+          if (LOCALE === 'KO') {
+            if (!p.lat || !p.lng || !p.regionCode || !validRegions.has(p.regionCode)) {
+              skipped++;
+              continue;
+            }
+            await upsertPlaceKo(p);
+            upserted++;
+          } else {
+            const method = await matchExistingPlace(p);
+            if (method === 'byName') byName++;
+            else if (method === 'byCoord') byCoord++;
+            else skipped++;
           }
-          await upsertPlace(p);
-          upserted++;
         }
         if (processed >= total) break;
         page++;
         items = (await fetchPage(ctid, page)).items;
       }
-      console.log(`[type ${ctid}] upsert ${upserted}, skip ${skipped}`);
+      if (LOCALE === 'KO') {
+        console.log(`[type ${ctid}] upsert ${upserted}, skip ${skipped}`);
+      } else {
+        console.log(
+          `[type ${ctid}] locale=${LOCALE} · byName ${byName} · byCoord ${byCoord} · skipped ${skipped}`,
+        );
+      }
       grandUpserted += upserted;
+      grandByName += byName;
+      grandByCoord += byCoord;
       grandSkipped += skipped;
     }
-    console.log(`완료 — upsert ${grandUpserted}, skip ${grandSkipped}`);
+    if (LOCALE === 'KO') {
+      console.log(`완료 — upsert ${grandUpserted}, skip ${grandSkipped}`);
+    } else {
+      console.log(
+        `완료 — locale=${LOCALE} · byName ${grandByName} · byCoord ${grandByCoord} · skipped ${grandSkipped}`,
+      );
+    }
   } finally {
     await client.end();
   }
