@@ -12,7 +12,13 @@ export class PlacesController {
 
   /** 도(province) 내 여행지 목록 — cursor 페이지네이션, locale 적용. */
   @Get()
-  @ApiQuery({ name: 'province', required: true, type: String })
+  @ApiQuery({
+    name: 'province',
+    required: true,
+    type: String,
+    example: '39',
+    description: '시·도 코드 (GET /api/regions 로 조회. 예: 39=제주)',
+  })
   @ApiQuery({ name: 'cursor', required: false, type: String })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   list(@Query() q: PlaceListQueryDto, @ReqContext() ctx: RequestContext) {

@@ -9,7 +9,12 @@ export class ScoringController {
 
   /** 여행지 인증 점수 미리보기 — 게스트 허용(유저 무관 계산). */
   @Get('places/:placeId')
-  @ApiParam({ name: 'placeId', type: String })
+  @ApiParam({
+    name: 'placeId',
+    type: String,
+    example: '019eea71-dc41-7101-a57d-f6ebd3b80e43',
+    description: '여행지 UUID (GET /api/places 목록에서 획득)',
+  })
   @ApiOkResponse({
     description: '점수 미리보기 (전역 인터셉터가 {result: ...}로 감쌈)',
     schema: {

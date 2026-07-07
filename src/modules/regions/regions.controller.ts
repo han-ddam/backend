@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiOkResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { OptionalJwtAuthGuard } from '@modules/auth/guards/optional-jwt-auth.guard';
 import { OptionalUser } from '@modules/auth/decorators/optional-user.decorator';
 import type { AuthUser } from '@modules/auth/auth.types';
@@ -33,6 +33,11 @@ export class RegionsController {
 
   /** 도(province) 상세 — 로그인 시 개인 수집 진행률 반영, 게스트는 0%. */
   @Get(':code')
+  @ApiParam({
+    name: 'code',
+    example: '39',
+    description: '시·도 코드 (GET /api/regions 로 조회. 예: 39=제주)',
+  })
   getRegion(
     @Param('code') code: string,
     @OptionalUser() user: AuthUser | null,
@@ -43,6 +48,11 @@ export class RegionsController {
 
   /** 도(province) 내 여행지 목록 — cursor 페이지네이션, 방문 상태 필터. */
   @Get(':code/places')
+  @ApiParam({
+    name: 'code',
+    example: '39',
+    description: '시·도 코드 (GET /api/regions 로 조회. 예: 39=제주)',
+  })
   @ApiQuery({ name: 'status', required: false, enum: ['ALL', 'VISITED'] })
   @ApiQuery({ name: 'cursor', required: false, type: String })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -64,6 +74,11 @@ export class RegionsController {
 
   /** 도(province) 추천 여행지. */
   @Get(':code/recommended')
+  @ApiParam({
+    name: 'code',
+    example: '39',
+    description: '시·도 코드 (GET /api/regions 로 조회. 예: 39=제주)',
+  })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   listRecommended(
     @Param('code') code: string,
