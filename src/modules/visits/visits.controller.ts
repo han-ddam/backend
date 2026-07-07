@@ -1,5 +1,5 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@modules/auth/decorators/current-user.decorator';
 import type { AuthUser } from '@modules/auth/auth.types';
@@ -12,6 +12,7 @@ export class VisitsController {
   constructor(private readonly visits: VisitsService) {}
 
   /** 여행지 방문(수집) 기록 — 멱등. */
+  @ApiOperation({ summary: '여행지 방문 기록 (멱등)' })
   @Post()
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)

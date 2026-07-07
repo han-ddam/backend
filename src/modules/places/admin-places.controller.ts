@@ -8,7 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AdminJwtGuard } from '@modules/admin/guards/admin-jwt.guard';
 import { AdminRolesGuard } from '@modules/admin/guards/admin-roles.guard';
 import { AdminRoles } from '@modules/admin/decorators/admin-roles.decorator';
@@ -28,6 +28,7 @@ import {
 export class AdminPlacesController {
   constructor(private readonly places: PlacesService) {}
 
+  @ApiOperation({ summary: '여행지 등록 (어드민)' })
   @Post()
   async create(@Body() dto: CreatePlaceDto) {
     const place = await this.places.createPlace(dto);
@@ -39,12 +40,14 @@ export class AdminPlacesController {
     };
   }
 
+  @ApiOperation({ summary: '여행지 목록 (어드민)' })
   @Get()
   list(@Query() q: AdminPlaceListQueryDto) {
     return this.places.adminList(q);
   }
 
   /** 장소 상태 변경 — 사용자 제출 장소 승인/반려 포함. */
+  @ApiOperation({ summary: '여행지 상태 변경 (승인/반려)' })
   @Patch(':id/status')
   setStatus(@Param('id') id: string, @Body() dto: UpdatePlaceStatusDto) {
     return this.places.setPlaceStatus(id, dto.status);

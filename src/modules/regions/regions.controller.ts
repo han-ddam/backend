@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiOkResponse, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { OptionalJwtAuthGuard } from '@modules/auth/guards/optional-jwt-auth.guard';
 import { OptionalUser } from '@modules/auth/decorators/optional-user.decorator';
 import type { AuthUser } from '@modules/auth/auth.types';
@@ -15,6 +15,7 @@ export class RegionsController {
   constructor(private readonly regions: RegionsService) {}
 
   /** 시·도 코드표 — province 코드 발견용 (게스트 동일). */
+  @ApiOperation({ summary: '시·도 코드 목록' })
   @Get()
   @ApiOkResponse({
     description: '시·도 17개 코드·이름 (전역 인터셉터가 {result: ...}로 감쌈)',
@@ -32,6 +33,7 @@ export class RegionsController {
   }
 
   /** 도(province) 상세 — 로그인 시 개인 수집 진행률 반영, 게스트는 0%. */
+  @ApiOperation({ summary: '시·도 상세 (수집 진행도)' })
   @Get(':code')
   @ApiParam({
     name: 'code',
@@ -47,6 +49,7 @@ export class RegionsController {
   }
 
   /** 도(province) 내 여행지 목록 — cursor 페이지네이션, 방문 상태 필터. */
+  @ApiOperation({ summary: '시·도 내 여행지 목록' })
   @Get(':code/places')
   @ApiParam({
     name: 'code',
@@ -73,6 +76,7 @@ export class RegionsController {
   }
 
   /** 도(province) 추천 여행지. */
+  @ApiOperation({ summary: '시·도 추천 여행지' })
   @Get(':code/recommended')
   @ApiParam({
     name: 'code',

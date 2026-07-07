@@ -1,5 +1,5 @@
 import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
-import { ApiOkResponse, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { ScoringService } from './scoring.service';
 
 @ApiTags('scoring')
@@ -8,6 +8,7 @@ export class ScoringController {
   constructor(private readonly scoring: ScoringService) {}
 
   /** 여행지 인증 점수 미리보기 — 게스트 허용(유저 무관 계산). */
+  @ApiOperation({ summary: '인증 점수 미리보기' })
   @Get('places/:placeId')
   @ApiParam({
     name: 'placeId',

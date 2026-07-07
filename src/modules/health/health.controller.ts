@@ -1,5 +1,5 @@
 import { Controller, Get, Inject } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { sql } from 'drizzle-orm';
 import { Redis } from 'ioredis';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
@@ -14,6 +14,7 @@ export class HealthController {
   ) {}
 
   /** Liveness + dependency check: DB reachable, PostGIS present, Redis up. */
+  @ApiOperation({ summary: '헬스 체크' })
   @Get()
   async check() {
     const [{ version }] = await this.db.execute<{ version: string }>(

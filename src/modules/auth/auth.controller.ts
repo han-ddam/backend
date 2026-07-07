@@ -6,7 +6,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -21,34 +21,40 @@ import { LogoutDto, OAuthLoginDto, RefreshDto } from './dto/auth.dto';
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  @ApiOperation({ summary: '카카오 로그인' })
   @Post('oauth/kakao')
   kakao(@Body() dto: OAuthLoginDto) {
     return this.auth.loginWithOAuth('KAKAO', dto.accessToken);
   }
 
+  @ApiOperation({ summary: '네이버 로그인' })
   @Post('oauth/naver')
   naver(@Body() dto: OAuthLoginDto) {
     return this.auth.loginWithOAuth('NAVER', dto.accessToken);
   }
 
+  @ApiOperation({ summary: '구글 로그인' })
   @Post('oauth/google')
   google(@Body() dto: OAuthLoginDto) {
     // accessToken 필드에 Google ID token 전달
     return this.auth.loginWithOAuth('GOOGLE', dto.accessToken);
   }
 
+  @ApiOperation({ summary: '토큰 재발급' })
   @Post('refresh')
   @HttpCode(200)
   refresh(@Body() dto: RefreshDto) {
     return this.auth.refresh(dto.refreshToken);
   }
 
+  @ApiOperation({ summary: '로그아웃' })
   @Post('logout')
   @HttpCode(204)
   async logout(@Body() dto: LogoutDto) {
     await this.auth.logout(dto.refreshToken);
   }
 
+  @ApiOperation({ summary: '내 인증 정보' })
   @Get('me')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
