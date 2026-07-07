@@ -12,8 +12,9 @@ import {
 } from 'drizzle-orm/pg-core';
 import { localeEnum } from './enums';
 import { regions } from './regions';
+import { users } from './users';
 
-export const placeStatusEnum = pgEnum('place_status', ['ACTIVE', 'HIDDEN']);
+export const placeStatusEnum = pgEnum('place_status', ['ACTIVE', 'HIDDEN', 'PENDING_REVIEW']);
 
 /**
  * 여행지(관광지). TourAPI 관광지(type 12)에서 어드민이 큐레이션 등록.
@@ -33,6 +34,10 @@ export const places = pgTable('place', {
     .default('1.00'),
   tags: text('tags').array().notNull().default([]),
   status: placeStatusEnum('status').notNull().default('ACTIVE'),
+  // 사용자 제출 장소의 등록자 (NULL = 어드민 큐레이션/시드)
+  createdBy: uuid('created_by').references(() => users.id, {
+    onDelete: 'set null',
+  }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
