@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { OptionalJwtAuthGuard } from '@modules/auth/guards/optional-jwt-auth.guard';
 import { OptionalUser } from '@modules/auth/decorators/optional-user.decorator';
 import type { AuthUser } from '@modules/auth/auth.types';
@@ -13,6 +13,23 @@ import { RegionPlacesQueryDto, RecommendedQueryDto } from './dto/region.dto';
 @UseGuards(OptionalJwtAuthGuard)
 export class RegionsController {
   constructor(private readonly regions: RegionsService) {}
+
+  /** 시·도 코드표 — province 코드 발견용 (게스트 동일). */
+  @Get()
+  @ApiOkResponse({
+    description: '시·도 17개 코드·이름 (전역 인터셉터가 {result: ...}로 감쌈)',
+    schema: {
+      example: {
+        result: [
+          { code: '1', name: '서울' },
+          { code: '39', name: '제주특별자치도' },
+        ],
+      },
+    },
+  })
+  listRegions(@ReqContext() ctx: RequestContext) {
+    return this.regions.listRegions(ctx.locale);
+  }
 
   /** 도(province) 상세 — 로그인 시 개인 수집 진행률 반영, 게스트는 0%. */
   @Get(':code')

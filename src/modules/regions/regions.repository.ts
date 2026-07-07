@@ -18,6 +18,17 @@ export class RegionsRepository {
     return row;
   }
 
+  /** PROVINCE 전체 + 요청 locale/KO 이름 행 (시·도 코드표). */
+  async listProvinces(
+    locales: Locale[],
+  ): Promise<{ code: string; locale: string; name: string }[]> {
+    return this.db
+      .select({ code: regions.code, locale: regionTrans.locale, name: regionTrans.name })
+      .from(regions)
+      .innerJoin(regionTrans, eq(regionTrans.regionCode, regions.code))
+      .where(and(eq(regions.level, 'PROVINCE'), inArray(regionTrans.locale, locales)));
+  }
+
   async regionNames(
     code: string,
     locales: Locale[],

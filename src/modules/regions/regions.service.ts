@@ -5,6 +5,11 @@ import { RegionsRepository } from './regions.repository';
 
 type Locale = (typeof localeEnum.enumValues)[number];
 
+export interface RegionListItem {
+  code: string;
+  name: string;
+}
+
 export interface RegionDetail {
   code: string;
   name: string;
@@ -33,6 +38,18 @@ export interface RecommendedItem {
 @Injectable()
 export class RegionsService {
   constructor(private readonly repo: RegionsRepository) {}
+
+  /** 시·도 목록 — 코드·이름 (locale 우선, KO 폴백), 코드 정수 오름차순. */
+  async listRegions(locale: Locale): Promise<RegionListItem[]> {
+    const rows = await this.repo.listProvinces([locale, 'KO']);
+    const codes = [...new Set(rows.map((r) => r.code))];
+    return codes
+      .map((code) => ({
+        code,
+        name: this.pickName(rows.filter((r) => r.code === code), locale),
+      }))
+      .sort((a, b) => Number(a.code) - Number(b.code));
+  }
 
   async getRegion(code: string, userId: string | null, locale: Locale): Promise<RegionDetail> {
     const region = await this.repo.findProvince(code);

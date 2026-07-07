@@ -14,6 +14,7 @@ describe('RegionsService', () => {
       listPlaces: jest.fn(),
       placeTransForMany: jest.fn(),
       listRecommended: jest.fn(),
+      listProvinces: jest.fn(),
     };
     service = new RegionsService(repo);
   });
@@ -90,6 +91,22 @@ describe('RegionsService', () => {
       ]);
       const out = await service.listRecommended({ code: '32', userId: 'u1', locale: 'KO', limit: 1 });
       expect(out).toEqual([{ placeId: 'p2', name: '설악산', address: '속초', imageUrl: null }]);
+    });
+  });
+
+  describe('listRegions', () => {
+    it('lists provinces sorted numerically with locale preference and KO fallback', async () => {
+      repo.listProvinces.mockResolvedValue([
+        { code: '31', locale: 'KO', name: '경기도' },
+        { code: '31', locale: 'EN', name: 'Gyeonggi-do' },
+        { code: '8', locale: 'KO', name: '세종특별자치시' },
+      ]);
+      const out = await service.listRegions('EN');
+      expect(out).toEqual([
+        { code: '8', name: '세종특별자치시' }, // EN 번역 없음 → KO 폴백, 8 < 31 정수 정렬
+        { code: '31', name: 'Gyeonggi-do' }, // EN 우선
+      ]);
+      expect(repo.listProvinces).toHaveBeenCalledWith(['EN', 'KO']);
     });
   });
 });
