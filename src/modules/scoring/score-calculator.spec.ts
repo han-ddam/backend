@@ -21,7 +21,7 @@ describe('calculateScore', () => {
   it('rounds estimatedPoints to one decimal place', () => {
     const out = calculateScore('CERT_PHOTO', {
       basePoints: 10,
-      regionWeight: 1.33,
+      regionWeight: 1.333,
       rarityWeight: 1.0,
       eventMultiplier: 1.0,
     });
