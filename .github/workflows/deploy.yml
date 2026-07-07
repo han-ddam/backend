@@ -1,6 +1,7 @@
 name: deploy
 
-# main push → build image, push to GHCR, deploy to the tailnet server over SSH.
+# main push → SSH into the server → git pull → build image → migrate → up.
+# 서버가 직접 빌드(GHCR 미사용). 외부 공개는 서버의 cloudflared 터널이 담당.
 on:
   push:
     branches: [main]
@@ -10,79 +11,28 @@ concurrency:
   group: deploy
   cancel-in-progress: false
 
-env:
-  IMAGE: ghcr.io/${{ github.repository }}
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build & push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.IMAGE }}:${{ github.sha }}
-            ${{ env.IMAGE }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # join the tailnet as an ephemeral node (no password; OAuth client tagged tag:ci)
-      - name: Connect Tailscale
-        uses: tailscale/github-action@v3
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
-
-      - name: Prepare SSH
-        env:
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-        run: |
-          PORT="${DEPLOY_PORT:-22}"
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p "$PORT" -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
-
-      - name: Sync deploy files
-        env:
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-        run: |
-          PORT="${DEPLOY_PORT:-22}"
-          HOST="${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}"
-          DIR="${{ secrets.DEPLOY_DIR }}"
-          ssh -p "$PORT" -i ~/.ssh/id_ed25519 "$HOST" "mkdir -p $DIR/docker/initdb $DIR/scripts"
-          scp -P "$PORT" -i ~/.ssh/id_ed25519 compose.prod.yml "$HOST:$DIR/compose.prod.yml"
-          scp -P "$PORT" -i ~/.ssh/id_ed25519 scripts/deploy.sh "$HOST:$DIR/scripts/deploy.sh"
-          scp -P "$PORT" -i ~/.ssh/id_ed25519 docker/initdb/* "$HOST:$DIR/docker/initdb/"
-
-      - name: Deploy
-        env:
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-        run: |
-          PORT="${DEPLOY_PORT:-22}"
-          HOST="${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}"
-          DIR="${{ secrets.DEPLOY_DIR }}"
-          IMG="${{ env.IMAGE }}:${{ github.sha }}"
-          # GHCR pull auth on the server using this job's token (valid for the run)
-          ssh -p "$PORT" -i ~/.ssh/id_ed25519 "$HOST" \
-            "cd $DIR && \
-             echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin && \
-             APP_IMAGE='$IMG' bash scripts/deploy.sh && \
-             docker logout ghcr.io"
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            set -e
+            cd ~/projects/han-ddam
+            git pull origin main
+            COMPOSE="docker compose -f compose.server.yml"
+            # 1) 이미지 빌드 (Dockerfile 멀티스테이지)
+            $COMPOSE build app
+            # 2) DB 먼저 기동 후 마이그레이션 (신규 테이블/컬럼 반영)
+            $COMPOSE up -d postgres redis
+            $COMPOSE run --rm app node dist/db/migrate.js
+            # 3) 전체 기동 (app + worker)
+            $COMPOSE up -d
+            # 4) 정리
+            docker image prune -f || true

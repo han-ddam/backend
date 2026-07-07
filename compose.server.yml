@@ -1,0 +1,63 @@
+# 서버에서 직접 빌드하는 배포 스택 (git pull → build → migrate → up).
+# CI(GHCR) 없이 서버가 Dockerfile로 이미지를 빌드한다. 개발 단계용.
+# 외부 공개는 같은 호스트의 cloudflared 터널이 담당 (app은 127.0.0.1:3000만 노출).
+#   secrets/runtime config come from ./.env  (POSTGRES_*, DATABASE_URL, JWT_*, ...)
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: handdam-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - handdam-pgdata:/var/lib/postgresql/data
+      # creates postgis + pg_trgm extensions on first init
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: handdam-redis
+    restart: unless-stopped
+    volumes:
+      - handdam-redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    image: handdam:local
+    container_name: handdam-app
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    ports:
+      # localhost only — cloudflared(같은 호스트)가 이 포트로 붙어 외부 공개.
+      # 공인 IP로 직접 노출하려면 '${APP_PORT:-3000}:3000'으로 바꿀 것(TLS 없음 주의).
+      - '127.0.0.1:${APP_PORT:-3000}:3000'
+
+  worker:
+    build: .
+    image: handdam:local
+    container_name: handdam-worker
+    restart: unless-stopped
+    env_file: .env
+    command: ['node', 'dist/worker.js']
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+volumes:
+  handdam-pgdata:
+  handdam-redisdata:
