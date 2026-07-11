@@ -8,5 +8,6 @@ import { RegionsController } from './regions.controller';
   imports: [AuthModule], // OptionalJwtAuthGuard 사용 (AuthModule이 JwtModule과 함께 export)
   controllers: [RegionsController],
   providers: [RegionsRepository, RegionsService],
+  exports: [RegionsService],
 })
 export class RegionsModule {}
