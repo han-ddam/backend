@@ -15,6 +15,9 @@ export interface SubmitResult {
   proximityPass: boolean;
 }
 
+/** LocalStorage가 실제로 채번하는 키 형식만 허용 (경로 순회 방지). */
+const SAFE_IMAGE_KEY = /^certifications\/[A-Za-z0-9_-]+\.(jpg|png|webp)$/;
+
 @Injectable()
 export class CertificationsService {
   constructor(
@@ -76,5 +79,19 @@ export class CertificationsService {
     const result = await this.repo.getResult(id, userId);
     if (!result) throw new NotFoundException('Certification not found');
     return result;
+  }
+
+  /**
+   * 사진 접근 가능 여부 — PUBLIC이면 누구나, PRIVATE이면 본인만. 접근 불가/없음이면 null.
+   * 클라이언트가 보낸 key가 채번 형식(`certifications/<id>.<ext>`)이 아니면 스토리지를
+   * 조회하지 않고 즉시 null(→ 404) — 경로 순회(`..`, 절대경로 등) 방지.
+   */
+  async getPhotoMeta(imageKey: string, userId: string | null): Promise<{ ok: true } | null> {
+    if (!SAFE_IMAGE_KEY.test(imageKey)) return null;
+    const cert = await this.repo.findByImageKey(imageKey);
+    if (!cert) return null;
+    if (cert.visibility === 'PUBLIC') return { ok: true };
+    if (userId && cert.userId === userId) return { ok: true };
+    return null;
   }
 }

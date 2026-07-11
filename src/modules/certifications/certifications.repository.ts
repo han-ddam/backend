@@ -78,6 +78,17 @@ export class CertificationsRepository {
     });
   }
 
+  /** 사진 서빙 접근판정용 — imageKey → (소유자, 공개설정). 없으면 null. */
+  async findByImageKey(
+    imageKey: string,
+  ): Promise<{ userId: string; visibility: string } | null> {
+    const [row] = await this.db
+      .select({ userId: certifications.userId, visibility: certifications.visibility })
+      .from(certifications)
+      .where(eq(certifications.imageKey, imageKey));
+    return row ?? null;
+  }
+
   async findById(id: string): Promise<Certification | null> {
     const [row] = await this.db.select().from(certifications).where(eq(certifications.id, id));
     return row ?? null;

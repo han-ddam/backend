@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { AuthModule } from '@modules/auth/auth.module';
 import { GeoModule } from '@modules/geo/geo.module';
 import { ScoringModule } from '@modules/scoring/scoring.module';
+import { CertificationsController } from './certifications.controller';
 import { CertificationsRepository } from './certifications.repository';
 import { CertificationsService } from './certifications.service';
 import { CertificationsProcessor } from './certifications.processor';
@@ -18,6 +19,7 @@ import { MockVerifier } from './verify/mock-verifier';
     GeoModule, // 근접판정
     ScoringModule, // 적립 점수(preview) — 프로세서(Task6)에서 사용
   ],
+  controllers: [CertificationsController],
   providers: [
     CertificationsRepository,
     CertificationsService,

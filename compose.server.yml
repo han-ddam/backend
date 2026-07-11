@@ -49,6 +49,8 @@ services:
       # localhost only — cloudflared(같은 호스트)가 이 포트로 붙어 외부 공개.
       # 공인 IP로 직접 노출하려면 '${APP_PORT:-3000}:3000'으로 바꿀 것(TLS 없음 주의).
       - '127.0.0.1:${APP_PORT:-3000}:3000'
+    volumes:
+      - handdam-uploads:/app/uploads
 
   worker:
     build: .
@@ -60,7 +62,10 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+    volumes:
+      - handdam-uploads:/app/uploads
 
 volumes:
   handdam-pgdata:
   handdam-redisdata:
+  handdam-uploads:
