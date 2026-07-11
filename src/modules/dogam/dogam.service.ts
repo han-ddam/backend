@@ -35,9 +35,11 @@ export class DogamService {
   }
 
   async regions(userId: string, locale: Locale): Promise<RegionCard[]> {
-    const names = await this.regionsService.listRegions(locale); // 정렬된 [{code,name}]
-    const totals = await this.repo.regionTotals();
-    const visited = await this.repo.regionVisited(userId);
+    const [names, totals, visited] = await Promise.all([
+      this.regionsService.listRegions(locale), // 정렬된 [{code,name}]
+      this.repo.regionTotals(),
+      this.repo.regionVisited(userId),
+    ]);
     return names.map(({ code, name }) => {
       const total = totals.get(code) ?? 0;
       const collected = visited.get(code) ?? 0;
@@ -65,11 +67,17 @@ export class DogamService {
     const names = await this.repo.placeNames(ids, [locale, 'KO']);
     const images = await this.repo.certImagesFor(userId, ids);
     const imgMap = new Map(images.map((i) => [i.placeId, i.imageKey]));
+    const nameMap = new Map<string, { locale: string; name: string }[]>();
+    for (const n of names) {
+      const list = nameMap.get(n.placeId);
+      if (list) list.push(n);
+      else nameMap.set(n.placeId, [n]);
+    }
     const items: RecentItem[] = page.items.map((r) => {
       const key = imgMap.get(r.placeId);
       return {
         placeId: r.placeId,
-        name: this.pickName(names.filter((n) => n.placeId === r.placeId), locale),
+        name: this.pickName(nameMap.get(r.placeId) ?? [], locale),
         imageUrl: key ? `/api/certifications/photos/${key}` : null,
         collectedAt: r.createdAt.toISOString(),
       };

@@ -105,6 +105,6 @@ export class DogamRepository {
           eq(certifications.status, 'ACCEPTED'),
         ),
       )
-      .orderBy(certifications.placeId, desc(certifications.createdAt));
+      .orderBy(certifications.placeId, desc(certifications.createdAt), desc(certifications.id));
   }
 }
