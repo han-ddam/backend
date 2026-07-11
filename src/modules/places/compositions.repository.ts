@@ -34,7 +34,11 @@ export class CompositionsRepository {
       })
       .from(placeCompositions)
       .where(eq(placeCompositions.placeId, placeId))
-      .orderBy(asc(placeCompositions.seq));
+      .orderBy(
+        asc(placeCompositions.seq),
+        asc(placeCompositions.createdAt),
+        asc(placeCompositions.id),
+      );
   }
 
   async transForCompositions(

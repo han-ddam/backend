@@ -76,6 +76,18 @@ export class CreateCompositionDto extends createZodDto(
         }),
       )
       .min(1)
+      .superRefine((arr, ctx) => {
+        const seen = new Set<string>();
+        for (const t of arr) {
+          if (seen.has(t.locale)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `duplicate locale: ${t.locale}`,
+            });
+          }
+          seen.add(t.locale);
+        }
+      })
       .describe('번역(KO 필수)'),
   }),
 ) {}
