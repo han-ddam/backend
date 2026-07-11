@@ -52,3 +52,12 @@ export class SubmitUserPlaceDto extends createZodDto(
     description: z.string().max(500).optional().describe('설명 (선택)'),
   }),
 ) {}
+
+export class NearbyQueryDto extends createZodDto(
+  z.object({
+    lat: z.coerce.number().min(33).max(39).describe('디바이스 위도(근접 판정용, 미저장)'),
+    lng: z.coerce.number().min(124).max(132).describe('디바이스 경도(근접 판정용, 미저장)'),
+    radius: z.coerce.number().int().min(1).max(50000).optional().describe('반경(m, 기본 2000)'),
+    limit: z.coerce.number().int().min(1).max(100).optional().describe('최대 개수(기본 20)'),
+  }),
+) {}
