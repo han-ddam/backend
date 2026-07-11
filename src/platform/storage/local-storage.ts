@@ -8,7 +8,7 @@ import type { Env } from '@platform/config/env';
 import { IdService } from '@platform/id/id.service';
 import { StoragePort, MIME_EXT, EXT_MIME } from './storage.port';
 
-/** 미니PC 로컬 디스크(STORAGE_DIR) 기반 저장소. 키는 certifications/<id>.<ext>. */
+/** 미니PC 로컬 디스크(STORAGE_DIR) 기반 저장소. 키는 <folder>/<id>.<ext>. */
 @Injectable()
 export class LocalStorage implements StoragePort {
   constructor(
@@ -20,12 +20,12 @@ export class LocalStorage implements StoragePort {
     return this.config.get('STORAGE_DIR', { infer: true });
   }
 
-  async save(buffer: Buffer, mime: string): Promise<{ key: string }> {
+  async save(buffer: Buffer, mime: string, folder = 'certifications'): Promise<{ key: string }> {
     const ext = MIME_EXT[mime];
     if (!ext) throw new Error(`unsupported mime: ${mime}`);
-    const key = `certifications/${this.id.generate()}.${ext}`;
+    const key = `${folder}/${this.id.generate()}.${ext}`;
     const full = join(this.root, key);
-    await mkdir(join(this.root, 'certifications'), { recursive: true });
+    await mkdir(join(this.root, folder), { recursive: true });
     await writeFile(full, buffer);
     return { key };
   }

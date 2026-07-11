@@ -6,7 +6,7 @@ import type { Env } from '@platform/config/env';
 import { IdService } from '@platform/id/id.service';
 import { GeoService } from '@modules/geo/geo.service';
 import { CertificationsRepository } from './certifications.repository';
-import { STORAGE, type StoragePort } from './storage/storage.port';
+import { STORAGE, type StoragePort } from '@platform/storage/storage.port';
 import { SubmitCertificationDto } from './dto/certification.dto';
 
 export interface SubmitResult {

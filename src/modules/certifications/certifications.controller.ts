@@ -23,7 +23,7 @@ import { OptionalUser } from '@modules/auth/decorators/optional-user.decorator';
 import type { AuthUser } from '@modules/auth/auth.types';
 import { CertificationsService } from './certifications.service';
 import { SubmitCertificationDto } from './dto/certification.dto';
-import { STORAGE, type StoragePort, MIME_EXT } from './storage/storage.port';
+import { STORAGE, type StoragePort, MIME_EXT } from '@platform/storage/storage.port';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 

@@ -5,6 +5,7 @@ import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis'
 import type { Redis } from 'ioredis';
 import { PlatformModule } from '@platform/platform.module';
 import { QueueModule } from '@platform/queue/queue.module';
+import { StorageModule } from '@platform/storage/storage.module';
 import { REDIS } from '@platform/redis/redis.module';
 import { RequestContextMiddleware } from '@platform/context/request-context.middleware';
 import { HealthModule } from '@modules/health/health.module';
@@ -38,6 +39,7 @@ import { DogamModule } from '@modules/dogam/dogam.module';
     }),
     PlatformModule,
     QueueModule,
+    StorageModule,
     HealthModule,
     GeoModule,
     UsersModule,

@@ -7,8 +7,6 @@ import { CertificationsController } from './certifications.controller';
 import { CertificationsRepository } from './certifications.repository';
 import { CertificationsService } from './certifications.service';
 import { CertificationsProcessor } from './certifications.processor';
-import { STORAGE } from './storage/storage.port';
-import { LocalStorage } from './storage/local-storage';
 import { VERIFIER } from './verify/verifier.port';
 import { MockVerifier } from './verify/mock-verifier';
 
@@ -24,7 +22,6 @@ import { MockVerifier } from './verify/mock-verifier';
     CertificationsRepository,
     CertificationsService,
     CertificationsProcessor,
-    { provide: STORAGE, useClass: LocalStorage },
     { provide: VERIFIER, useClass: MockVerifier },
   ],
   exports: [CertificationsService],

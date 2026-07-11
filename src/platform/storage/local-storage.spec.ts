@@ -46,4 +46,11 @@ describe('LocalStorage', () => {
     const store = make(dir);
     await expect(store.save(Buffer.from('x'), 'image/gif')).rejects.toThrow();
   });
+
+  it('saves under a custom folder when provided', async () => {
+    const store = make(dir);
+    const { key } = await store.save(Buffer.from('x'), 'image/jpeg', 'compositions');
+    expect(key).toBe('compositions/id-1.jpg');
+    expect(existsSync(join(dir, key))).toBe(true);
+  });
 });
