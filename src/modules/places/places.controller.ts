@@ -1,14 +1,32 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Inject,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  Res,
+} from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { ReqContext } from '@platform/context/req-context.decorator';
 import type { RequestContext } from '@platform/context/request-context';
+import { STORAGE, type StoragePort } from '@platform/storage/storage.port';
 import { PlacesService } from './places.service';
+import { CompositionsService } from './compositions.service';
 import { PlaceListQueryDto, NearbyQueryDto } from './dto/place.dto';
+
+const SAFE_COMPOSITION_KEY = /^compositions\/[A-Za-z0-9_-]+\.(jpg|png|webp)$/;
 
 @ApiTags('places')
 @Controller('places')
 export class PlacesController {
-  constructor(private readonly places: PlacesService) {}
+  constructor(
+    private readonly places: PlacesService,
+    private readonly compositionsService: CompositionsService,
+    @Inject(STORAGE) private readonly storage: StoragePort,
+  ) {}
 
   /** 도(province) 내 여행지 목록 — cursor 페이지네이션, locale 적용. */
   @ApiOperation({ summary: '여행지 목록 (시·도별, cursor)' })
@@ -46,6 +64,23 @@ export class PlacesController {
       limit: q.limit,
       locale: ctx.locale,
     });
+  }
+
+  /** 여행지 구도 가이드 (공개). */
+  @ApiOperation({ summary: '여행지 구도 가이드' })
+  @Get('compositions/photos/:key(*)')
+  async compositionPhoto(@Param('key') key: string, @Res() res: Response) {
+    if (!SAFE_COMPOSITION_KEY.test(key)) throw new NotFoundException('photo not found');
+    const file = await this.storage.read(key);
+    if (!file) throw new NotFoundException('photo not found');
+    res.setHeader('Content-Type', file.mime);
+    file.stream.pipe(res);
+  }
+
+  @ApiOperation({ summary: '여행지 구도 가이드 목록' })
+  @Get(':id/compositions')
+  compositions(@Param('id', ParseUUIDPipe) id: string, @ReqContext() ctx: RequestContext) {
+    return this.compositionsService.forPlace(id, ctx.locale);
   }
 
   /** 여행지 상세 (점수/가중치는 scoring 도메인에서 별도 조회). */

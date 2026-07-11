@@ -61,3 +61,21 @@ export class NearbyQueryDto extends createZodDto(
     limit: z.coerce.number().int().min(1).max(100).optional().describe('최대 개수(기본 20)'),
   }),
 ) {}
+
+export class CreateCompositionDto extends createZodDto(
+  z.object({
+    seq: z.coerce.number().int().min(0).describe('표시 순서'),
+    source: z.enum(['CURATED', 'AI']).optional().describe('출처(기본 CURATED)'),
+    imageKey: z.string().optional().describe('업로드 응답의 imageKey(선택)'),
+    translations: z
+      .array(
+        z.object({
+          locale: z.enum(['KO', 'EN', 'JA', 'ZH']),
+          title: z.string().min(1),
+          description: z.string().optional(),
+        }),
+      )
+      .min(1)
+      .describe('번역(KO 필수)'),
+  }),
+) {}
