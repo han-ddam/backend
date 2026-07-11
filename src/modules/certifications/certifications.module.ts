@@ -5,6 +5,7 @@ import { GeoModule } from '@modules/geo/geo.module';
 import { ScoringModule } from '@modules/scoring/scoring.module';
 import { CertificationsRepository } from './certifications.repository';
 import { CertificationsService } from './certifications.service';
+import { CertificationsProcessor } from './certifications.processor';
 import { STORAGE } from './storage/storage.port';
 import { LocalStorage } from './storage/local-storage';
 import { VERIFIER } from './verify/verifier.port';
@@ -20,6 +21,7 @@ import { MockVerifier } from './verify/mock-verifier';
   providers: [
     CertificationsRepository,
     CertificationsService,
+    CertificationsProcessor,
     { provide: STORAGE, useClass: LocalStorage },
     { provide: VERIFIER, useClass: MockVerifier },
   ],
