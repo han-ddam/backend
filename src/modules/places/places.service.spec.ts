@@ -15,6 +15,7 @@ describe('PlacesService', () => {
       listAll: jest.fn(),
       create: jest.fn(),
       nearestRegionCode: jest.fn(),
+      nearbyPlaces: jest.fn(),
       setStatus: jest.fn(),
     };
     let seq = 0;
@@ -156,6 +157,43 @@ describe('PlacesService', () => {
       await expect(service.setPlaceStatus('nope', 'HIDDEN')).rejects.toThrow(
         'Place not found',
       );
+    });
+  });
+
+  describe('nearby', () => {
+    it('maps rows to items sorted by distance, rounds distanceM, thumbnailUrl null', async () => {
+      repo.nearbyPlaces.mockResolvedValue([
+        { id: 'p1', regionCode: '32_1', distanceM: 100.4 },
+        { id: 'p2', regionCode: '32_1', distanceM: 1200.6 },
+      ]);
+      repo.transForMany.mockResolvedValue([
+        { placeId: 'p1', locale: 'KO', name: '영금정', address: '속초시 A' },
+        { placeId: 'p2', locale: 'KO', name: '설악산', address: null },
+      ]);
+      const out = await service.nearby({ lat: 38.2, lng: 128.6, locale: 'KO' });
+      expect(repo.nearbyPlaces).toHaveBeenCalledWith(38.2, 128.6, 2000, 20); // 기본값
+      expect(out).toEqual([
+        { placeId: 'p1', name: '영금정', address: '속초시 A', distanceM: 100, regionCode: '32_1', thumbnailUrl: null },
+        { placeId: 'p2', name: '설악산', address: null, distanceM: 1201, regionCode: '32_1', thumbnailUrl: null },
+      ]);
+    });
+
+    it('passes explicit radius/limit and falls back name to empty string', async () => {
+      repo.nearbyPlaces.mockResolvedValue([{ id: 'p3', regionCode: '39_4', distanceM: 5.2 }]);
+      repo.transForMany.mockResolvedValue([]); // 이름 없음 → ''
+      const out = await service.nearby({ lat: 33.4, lng: 126.5, radius: 500, limit: 5, locale: 'EN' });
+      expect(repo.nearbyPlaces).toHaveBeenCalledWith(33.4, 126.5, 500, 5);
+      expect(repo.transForMany).toHaveBeenCalledWith(['p3'], ['EN', 'KO']);
+      expect(out).toEqual([
+        { placeId: 'p3', name: '', address: null, distanceM: 5, regionCode: '39_4', thumbnailUrl: null },
+      ]);
+    });
+
+    it('returns empty array when nothing is within radius', async () => {
+      repo.nearbyPlaces.mockResolvedValue([]);
+      const out = await service.nearby({ lat: 37, lng: 127, locale: 'KO' });
+      expect(out).toEqual([]);
+      expect(repo.transForMany).toHaveBeenCalledWith([], ['KO', 'KO']);
     });
   });
 });

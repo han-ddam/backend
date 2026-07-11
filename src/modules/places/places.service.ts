@@ -53,6 +53,15 @@ export interface SubmitUserPlaceCmd {
   description?: string;
 }
 
+export interface NearbyItem {
+  placeId: string;
+  name: string;
+  address: string | null;
+  distanceM: number;
+  regionCode: string;
+  thumbnailUrl: null;
+}
+
 @Injectable()
 export class PlacesService {
   constructor(
@@ -186,6 +195,37 @@ export class PlacesService {
     const row = await this.repo.setStatus(id, status);
     if (!row) throw new NotFoundException('Place not found');
     return { id: row.id, status: row.status as PlaceStatus };
+  }
+
+  /** GPS 근접 여행지 목록 — 거리순. GPS 원본은 판정에만 쓰고 저장하지 않는다. */
+  async nearby(params: {
+    lat: number;
+    lng: number;
+    radius?: number;
+    limit?: number;
+    locale: Locale;
+  }): Promise<NearbyItem[]> {
+    const radius = params.radius ?? 2000;
+    const limit = params.limit ?? 20;
+    const rows = await this.repo.nearbyPlaces(params.lat, params.lng, radius, limit);
+    const trans = await this.repo.transForMany(
+      rows.map((r) => r.id),
+      [params.locale, 'KO'],
+    );
+    return rows.map((r) => {
+      const t = this.pickTrans(
+        trans.filter((x) => x.placeId === r.id),
+        params.locale,
+      );
+      return {
+        placeId: r.id,
+        name: t?.name ?? '',
+        address: t?.address ?? null,
+        distanceM: Math.round(r.distanceM),
+        regionCode: r.regionCode,
+        thumbnailUrl: null,
+      };
+    });
   }
 
   /** locale 행 우선, 없으면 KO 폴백. */

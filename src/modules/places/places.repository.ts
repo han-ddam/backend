@@ -195,4 +195,33 @@ export class PlacesRepository {
       .limit(1);
     return row?.regionCode ?? null;
   }
+
+  /** 좌표 기준 radiusM 내 ACTIVE 장소 목록(거리 ASC). GPS 원본은 저장하지 않음. */
+  async nearbyPlaces(
+    lat: number,
+    lng: number,
+    radiusM: number,
+    limit: number,
+  ): Promise<{ id: string; regionCode: string; distanceM: number }[]> {
+    const target = sql`ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography`;
+    const placePoint = sql`ST_SetSRID(ST_MakePoint(${places.lng}, ${places.lat}), 4326)::geography`;
+    const rows = await this.db
+      .select({
+        id: places.id,
+        regionCode: places.regionCode,
+        distanceM: sql<number>`ST_Distance(${placePoint}, ${target})`,
+      })
+      .from(places)
+      .where(
+        and(
+          eq(places.status, 'ACTIVE'),
+          isNotNull(places.lat),
+          isNotNull(places.lng),
+          sql`ST_DWithin(${placePoint}, ${target}, ${radiusM})`,
+        ),
+      )
+      .orderBy(sql`ST_Distance(${placePoint}, ${target})`)
+      .limit(limit);
+    return rows.map((r) => ({ id: r.id, regionCode: r.regionCode, distanceM: Number(r.distanceM) }));
+  }
 }
