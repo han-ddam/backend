@@ -21,6 +21,9 @@ export const envSchema = z.object({
 
   PROXIMITY_TOLERANCE_M: z.coerce.number().positive().default(150),
 
+  // 인증 사진 로컬 저장 디렉터리 (도커 볼륨 마운트 지점).
+  STORAGE_DIR: z.string().default('/app/uploads'),
+
   // Swagger는 production에서 기본 off. tunnel/스테이징에서 문서 UI가 필요하면 1로.
   ENABLE_SWAGGER: z
     .enum(['true', 'false', '1', '0'])

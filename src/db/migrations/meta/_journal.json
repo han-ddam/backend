@@ -85,6 +85,13 @@
       "when": 1783429973734,
       "tag": "0011_user_places",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1783742431158,
+      "tag": "0012_certification",
+      "breakpoints": true
     }
   ]
 }

@@ -9,3 +9,5 @@ export * from './places';
 export * from './agreements';
 export * from './visits';
 export * from './scoring';
+export * from './certifications';
+export * from './score-events';
