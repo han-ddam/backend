@@ -11,3 +11,4 @@ export * from './visits';
 export * from './scoring';
 export * from './certifications';
 export * from './score-events';
+export * from './compositions';
