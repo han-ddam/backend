@@ -70,7 +70,7 @@ describe('CertificationsService', () => {
     expect(out).toEqual({ certId: 'cert-1', status: 'REJECTED', proximityPass: false });
   });
 
-  it('submit is idempotent — returns existing cert for same (user,imageKey)', async () => {
+  it('submit is idempotent — PENDING replay re-enqueues the stuck cert', async () => {
     repo.findByUserImageKey.mockResolvedValue({
       id: 'old',
       status: 'PENDING',
@@ -78,6 +78,18 @@ describe('CertificationsService', () => {
     });
     const out = await service.submit('u1', dto);
     expect(out).toEqual({ certId: 'old', status: 'PENDING', proximityPass: true });
+    expect(repo.createPending).not.toHaveBeenCalled();
+    expect(queue.add).toHaveBeenCalledWith('verify', { certId: 'old' });
+  });
+
+  it('submit is idempotent — non-PENDING replay (e.g. REJECTED) does not re-enqueue', async () => {
+    repo.findByUserImageKey.mockResolvedValue({
+      id: 'old',
+      status: 'REJECTED',
+      proximityPass: false,
+    });
+    const out = await service.submit('u1', dto);
+    expect(out).toEqual({ certId: 'old', status: 'REJECTED', proximityPass: false });
     expect(repo.createPending).not.toHaveBeenCalled();
     expect(queue.add).not.toHaveBeenCalled();
   });

@@ -11,7 +11,7 @@ import { SubmitCertificationDto } from './dto/certification.dto';
 
 export interface SubmitResult {
   certId: string;
-  status: 'PENDING' | 'REJECTED';
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
   proximityPass: boolean;
 }
 
@@ -38,9 +38,13 @@ export class CertificationsService {
     // 멱등: 같은 (user,imageKey)면 기존 결과 반환
     const existing = await this.repo.findByUserImageKey(userId, dto.imageKey);
     if (existing) {
+      if (existing.status === 'PENDING') {
+        // enqueue 실패 후 재시도로 PENDING에 멈춘 케이스 복구 — 프로세서가 상태를 가드하므로 중복 enqueue는 안전
+        await this.queue.add('verify', { certId: existing.id });
+      }
       return {
         certId: existing.id,
-        status: existing.status as 'PENDING' | 'REJECTED',
+        status: existing.status as SubmitResult['status'],
         proximityPass: existing.proximityPass,
       };
     }
