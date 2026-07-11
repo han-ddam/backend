@@ -18,6 +18,7 @@ import { RegionsModule } from '@modules/regions/regions.module';
 import { ScoringModule } from '@modules/scoring/scoring.module';
 import { AgreementsModule } from '@modules/agreements/agreements.module';
 import { CertificationsModule } from '@modules/certifications/certifications.module';
+import { DogamModule } from '@modules/dogam/dogam.module';
 
 /**
  * Root composition. PlatformModule (global) provides infra to every domain
@@ -48,6 +49,7 @@ import { CertificationsModule } from '@modules/certifications/certifications.mod
     ScoringModule,
     AgreementsModule,
     CertificationsModule,
+    DogamModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
