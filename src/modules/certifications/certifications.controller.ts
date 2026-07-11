@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Controller,
   Get,
+  Inject,
   Param,
   Post,
   Body,
@@ -23,7 +24,6 @@ import type { AuthUser } from '@modules/auth/auth.types';
 import { CertificationsService } from './certifications.service';
 import { SubmitCertificationDto } from './dto/certification.dto';
 import { STORAGE, type StoragePort, MIME_EXT } from './storage/storage.port';
-import { Inject } from '@nestjs/common';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -41,7 +41,7 @@ export class CertificationsController {
   @ApiOperation({ summary: '인증 사진 업로드' })
   @ApiConsumes('multipart/form-data')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_BYTES } }))
   async upload(@UploadedFile() file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('file is required');
     if (!MIME_EXT[file.mimetype]) throw new BadRequestException('unsupported image type');
