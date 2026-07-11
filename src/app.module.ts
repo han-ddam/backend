@@ -4,6 +4,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import type { Redis } from 'ioredis';
 import { PlatformModule } from '@platform/platform.module';
+import { QueueModule } from '@platform/queue/queue.module';
 import { REDIS } from '@platform/redis/redis.module';
 import { RequestContextMiddleware } from '@platform/context/request-context.middleware';
 import { HealthModule } from '@modules/health/health.module';
@@ -34,6 +35,7 @@ import { AgreementsModule } from '@modules/agreements/agreements.module';
       }),
     }),
     PlatformModule,
+    QueueModule,
     HealthModule,
     GeoModule,
     UsersModule,
