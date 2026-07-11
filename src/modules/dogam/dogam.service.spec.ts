@@ -8,6 +8,9 @@ describe('DogamService', () => {
       overview: jest.fn(),
       regionTotals: jest.fn(),
       regionVisited: jest.fn(),
+      recentVisitsPage: jest.fn(),
+      placeNames: jest.fn(),
+      certImagesFor: jest.fn(),
     };
     regionsSvc = { listRegions: jest.fn() };
     service = new DogamService(repo, regionsSvc);
@@ -38,6 +41,47 @@ describe('DogamService', () => {
         { sidoCode: '8', name: '세종특별자치시', collected: 0, total: 5, percent: 0, locked: false },
         { sidoCode: '39', name: '제주특별자치도', collected: 2, total: 40, percent: 5, locked: false },
       ]);
+    });
+  });
+
+  describe('recent', () => {
+    const d1 = new Date('2026-07-11T00:00:02.000Z');
+    const d2 = new Date('2026-07-11T00:00:01.000Z');
+
+    it('maps visits to items with cert imageUrl (or null) and collectedAt, builds nextCursor', async () => {
+      // limit 1 → repo returns limit+1=2 rows → hasNext true
+      repo.recentVisitsPage.mockResolvedValue([
+        { id: 'v1', createdAt: d1, placeId: 'p1' },
+        { id: 'v2', createdAt: d2, placeId: 'p2' },
+      ]);
+      repo.placeNames.mockResolvedValue([
+        { placeId: 'p1', locale: 'KO', name: '오름' },
+      ]);
+      repo.certImagesFor.mockResolvedValue([
+        { placeId: 'p1', imageKey: 'certifications/a.png' },
+      ]);
+      const out = await service.recent('u1', 'KO', undefined, 1);
+      expect(out.items).toEqual([
+        {
+          placeId: 'p1',
+          name: '오름',
+          imageUrl: '/api/certifications/photos/certifications/a.png',
+          collectedAt: d1.toISOString(),
+        },
+      ]);
+      expect(out.nextCursor).toEqual(expect.any(String));
+      expect(repo.recentVisitsPage).toHaveBeenCalledWith('u1', 1, undefined);
+    });
+
+    it('imageUrl is null when place has no cert; name falls back empty; last page has null cursor', async () => {
+      repo.recentVisitsPage.mockResolvedValue([{ id: 'v9', createdAt: d1, placeId: 'p9' }]);
+      repo.placeNames.mockResolvedValue([]); // 이름 없음 → ''
+      repo.certImagesFor.mockResolvedValue([]); // 인증 없음 → null
+      const out = await service.recent('u1', 'KO', undefined, 20);
+      expect(out.items).toEqual([
+        { placeId: 'p9', name: '', imageUrl: null, collectedAt: d1.toISOString() },
+      ]);
+      expect(out.nextCursor).toBeNull();
     });
   });
 });

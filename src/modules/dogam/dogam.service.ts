@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { localeEnum } from '@db/schema';
 import { RegionsService } from '@modules/regions/regions.service';
+import { buildCursorPage, type CursorPage } from '@platform/pagination/cursor';
 import { DogamRepository } from './dogam.repository';
 
 type Locale = (typeof localeEnum.enumValues)[number];
@@ -12,6 +13,13 @@ export interface RegionCard {
   collected: number;
   total: number;
   locked: boolean;
+}
+
+export interface RecentItem {
+  placeId: string;
+  name: string;
+  imageUrl: string | null;
+  collectedAt: string;
 }
 
 @Injectable()
@@ -42,5 +50,41 @@ export class DogamService {
         locked: false,
       };
     });
+  }
+
+  async recent(
+    userId: string,
+    locale: Locale,
+    cursor?: string,
+    limit?: number,
+  ): Promise<CursorPage<RecentItem>> {
+    const lim = Math.min(Math.max(limit ?? 20, 1), 100);
+    const rows = await this.repo.recentVisitsPage(userId, lim, cursor);
+    const page = buildCursorPage(rows, lim);
+    const ids = page.items.map((r) => r.placeId);
+    const names = await this.repo.placeNames(ids, [locale, 'KO']);
+    const images = await this.repo.certImagesFor(userId, ids);
+    const imgMap = new Map(images.map((i) => [i.placeId, i.imageKey]));
+    const items: RecentItem[] = page.items.map((r) => {
+      const key = imgMap.get(r.placeId);
+      return {
+        placeId: r.placeId,
+        name: this.pickName(names.filter((n) => n.placeId === r.placeId), locale),
+        imageUrl: key ? `/api/certifications/photos/${key}` : null,
+        collectedAt: r.createdAt.toISOString(),
+      };
+    });
+    return { items, nextCursor: page.nextCursor };
+  }
+
+  private pickName(
+    names: { locale: string; name: string }[],
+    locale: Locale,
+  ): string {
+    return (
+      names.find((n) => n.locale === locale)?.name ??
+      names.find((n) => n.locale === 'KO')?.name ??
+      ''
+    );
   }
 }

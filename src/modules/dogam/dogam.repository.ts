@@ -1,7 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, or, sql, type SQL } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
-import { places, visits, regions } from '@db/schema';
+import { decodeCursor } from '@platform/pagination/cursor';
+import { places, visits, regions, placeTrans, certifications, type localeEnum } from '@db/schema';
+
+type Locale = (typeof localeEnum.enumValues)[number];
 
 @Injectable()
 export class DogamRepository {
@@ -46,5 +49,62 @@ export class DogamRepository {
     const m = new Map<string, number>();
     for (const r of rows) if (r.province) m.set(r.province, Number(r.collected));
     return m;
+  }
+
+  /** 내 visit을 createdAt DESC, id DESC 커서로 limit+1개. */
+  async recentVisitsPage(
+    userId: string,
+    limit: number,
+    cursor?: string,
+  ): Promise<{ id: string; createdAt: Date; placeId: string }[]> {
+    const c = decodeCursor(cursor);
+    const conds: SQL[] = [eq(visits.userId, userId)];
+    if (c) {
+      conds.push(
+        or(
+          lt(visits.createdAt, c.createdAt),
+          and(eq(visits.createdAt, c.createdAt), lt(visits.id, c.id)),
+        )!,
+      );
+    }
+    return this.db
+      .select({ id: visits.id, createdAt: visits.createdAt, placeId: visits.placeId })
+      .from(visits)
+      .where(and(...conds))
+      .orderBy(desc(visits.createdAt), desc(visits.id))
+      .limit(limit + 1);
+  }
+
+  async placeNames(
+    placeIds: string[],
+    locales: Locale[],
+  ): Promise<{ placeId: string; locale: string; name: string }[]> {
+    if (placeIds.length === 0) return [];
+    return this.db
+      .select({ placeId: placeTrans.placeId, locale: placeTrans.locale, name: placeTrans.name })
+      .from(placeTrans)
+      .where(and(inArray(placeTrans.placeId, placeIds), inArray(placeTrans.locale, locales)));
+  }
+
+  /** (user,place)별 최신 ACCEPTED 인증의 image_key. */
+  async certImagesFor(
+    userId: string,
+    placeIds: string[],
+  ): Promise<{ placeId: string; imageKey: string }[]> {
+    if (placeIds.length === 0) return [];
+    return this.db
+      .selectDistinctOn([certifications.placeId], {
+        placeId: certifications.placeId,
+        imageKey: certifications.imageKey,
+      })
+      .from(certifications)
+      .where(
+        and(
+          eq(certifications.userId, userId),
+          inArray(certifications.placeId, placeIds),
+          eq(certifications.status, 'ACCEPTED'),
+        ),
+      )
+      .orderBy(certifications.placeId, desc(certifications.createdAt));
   }
 }
