@@ -59,4 +59,73 @@ describe('CompositionsService', () => {
       expect(out).toEqual([]);
     });
   });
+
+  describe('admin', () => {
+    it('uploadPhoto stores under compositions folder', async () => {
+      storage.save.mockResolvedValue({ key: 'compositions/a.jpg' });
+      const out = await service.uploadPhoto(Buffer.from('x'), 'image/jpeg');
+      expect(storage.save).toHaveBeenCalledWith(expect.any(Buffer), 'image/jpeg', 'compositions');
+      expect(out).toEqual({ imageKey: 'compositions/a.jpg' });
+    });
+
+    it('adminCreate inserts composition + trans (default source CURATED)', async () => {
+      repo.placeActive.mockResolvedValue(true);
+      repo.create.mockResolvedValue(undefined);
+      const out = await service.adminCreate('p1', {
+        seq: 1,
+        imageKey: 'compositions/a.jpg',
+        translations: [{ locale: 'KO', title: '정자+바다', description: '함께' }],
+      });
+      expect(out).toEqual({ compositionId: 'c-1' });
+      expect(repo.create).toHaveBeenCalledWith(
+        { id: 'c-1', placeId: 'p1', seq: 1, source: 'CURATED', exampleImageKey: 'compositions/a.jpg' },
+        [{ locale: 'KO', title: '정자+바다', description: '함께' }],
+      );
+    });
+
+    it('adminCreate throws NotFound when place inactive', async () => {
+      repo.placeActive.mockResolvedValue(false);
+      await expect(
+        service.adminCreate('nope', { seq: 1, translations: [{ locale: 'KO', title: 't' }] }),
+      ).rejects.toThrow('Place not found');
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
+    it('adminCreate throws BadRequest when KO translation missing', async () => {
+      repo.placeActive.mockResolvedValue(true);
+      await expect(
+        service.adminCreate('p1', { seq: 1, translations: [{ locale: 'EN', title: 't' }] }),
+      ).rejects.toThrow('KO translation is required');
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
+    it('adminList assembles per-composition translations, imageUrl null when no key', async () => {
+      repo.listForPlace.mockResolvedValue([
+        { id: 'k1', seq: 1, source: 'CURATED', exampleImageKey: 'compositions/a.jpg' },
+      ]);
+      repo.transForCompositions.mockResolvedValue([
+        { compositionId: 'k1', locale: 'KO', title: '정자', description: null },
+        { compositionId: 'k1', locale: 'EN', title: 'Pavilion', description: 'x' },
+      ]);
+      const out = await service.adminList('p1');
+      expect(repo.transForCompositions).toHaveBeenCalledWith(['k1'], ['KO', 'EN', 'JA', 'ZH']);
+      expect(out).toEqual([
+        {
+          id: 'k1',
+          seq: 1,
+          source: 'CURATED',
+          exampleImageUrl: '/api/places/compositions/photos/compositions/a.jpg',
+          translations: [
+            { locale: 'KO', title: '정자', description: null },
+            { locale: 'EN', title: 'Pavilion', description: 'x' },
+          ],
+        },
+      ]);
+    });
+
+    it('adminDelete throws NotFound when composition missing', async () => {
+      repo.deleteById.mockResolvedValue(false);
+      await expect(service.adminDelete('nope')).rejects.toThrow('Composition not found');
+    });
+  });
 });

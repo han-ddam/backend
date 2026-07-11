@@ -1,5 +1,5 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { localeEnum } from '@db/schema';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { localeEnum } from '@db/schema'; // 값으로도 사용 (enumValues)
 import { IdService } from '@platform/id/id.service';
 import { STORAGE, type StoragePort } from '@platform/storage/storage.port';
 import { CompositionsRepository } from './compositions.repository';
@@ -12,6 +12,14 @@ export interface CompositionItem {
   description: string | null;
   exampleImageUrl: string | null;
   source: string;
+}
+
+export interface AdminCompositionItem {
+  id: string;
+  seq: number;
+  source: string;
+  exampleImageUrl: string | null;
+  translations: { locale: string; title: string; description: string | null }[];
 }
 
 @Injectable()
@@ -51,5 +59,67 @@ export class CompositionsService {
     locale: Locale,
   ) {
     return trans.find((t) => t.locale === locale) ?? trans.find((t) => t.locale === 'KO');
+  }
+
+  async uploadPhoto(buffer: Buffer, mime: string): Promise<{ imageKey: string }> {
+    const { key } = await this.storage.save(buffer, mime, 'compositions');
+    return { imageKey: key };
+  }
+
+  async adminCreate(
+    placeId: string,
+    cmd: {
+      seq: number;
+      source?: 'CURATED' | 'AI';
+      imageKey?: string;
+      translations: { locale: string; title: string; description?: string }[];
+    },
+  ): Promise<{ compositionId: string }> {
+    if (!(await this.repo.placeActive(placeId))) {
+      throw new NotFoundException('Place not found');
+    }
+    if (!cmd.translations.some((t) => t.locale === 'KO')) {
+      throw new BadRequestException('KO translation is required');
+    }
+    const compositionId = this.id.generate();
+    await this.repo.create(
+      {
+        id: compositionId,
+        placeId,
+        seq: cmd.seq,
+        source: cmd.source ?? 'CURATED',
+        exampleImageKey: cmd.imageKey ?? null,
+      },
+      cmd.translations.map((t) => ({
+        locale: t.locale,
+        title: t.title,
+        description: t.description ?? null,
+      })),
+    );
+    return { compositionId };
+  }
+
+  async adminList(placeId: string): Promise<AdminCompositionItem[]> {
+    const rows = await this.repo.listForPlace(placeId);
+    const trans = await this.repo.transForCompositions(
+      rows.map((r) => r.id),
+      [...localeEnum.enumValues], // 전 locale
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      seq: r.seq,
+      source: r.source,
+      exampleImageUrl: r.exampleImageKey
+        ? `/api/places/compositions/photos/${r.exampleImageKey}`
+        : null,
+      translations: trans
+        .filter((t) => t.compositionId === r.id)
+        .map((t) => ({ locale: t.locale, title: t.title, description: t.description })),
+    }));
+  }
+
+  async adminDelete(compositionId: string): Promise<void> {
+    const ok = await this.repo.deleteById(compositionId);
+    if (!ok) throw new NotFoundException('Composition not found');
   }
 }
