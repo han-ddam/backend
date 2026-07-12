@@ -56,7 +56,7 @@ export class RegionsController {
     example: '39',
     description: '시·도 코드 (GET /api/regions 로 조회. 예: 39=제주)',
   })
-  @ApiQuery({ name: 'status', required: false, enum: ['ALL', 'VISITED'] })
+  @ApiQuery({ name: 'status', required: false, enum: ['ALL', 'VISITED', 'PLANNED'] })
   @ApiQuery({ name: 'cursor', required: false, type: String })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   listPlaces(
@@ -68,7 +68,7 @@ export class RegionsController {
     return this.regions.listPlaces({
       code,
       userId: user?.userId ?? null,
-      onlyVisited: q.status === 'VISITED',
+      status: q.status,
       locale: ctx.locale,
       cursor: q.cursor,
       limit: q.limit ?? 20,
