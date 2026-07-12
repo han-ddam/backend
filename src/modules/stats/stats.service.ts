@@ -3,6 +3,12 @@ import { DogamService } from '@modules/dogam/dogam.service';
 import { levelFromExp } from './level';
 import { StatsRepository, type Period } from './stats.repository';
 
+export interface SummaryStats {
+  score: number;
+  nationalRank: number | null;
+  totalUsers: number;
+}
+
 export interface ProfileResult {
   handle: string;
   displayName: string;
@@ -121,5 +127,11 @@ export class StatsService {
         pointsToNext: me.pointsToNext,
       },
     };
+  }
+
+  /** 홈 요약용 누적 통계 (raw 점수 포함). */
+  async summaryStats(userId: string): Promise<SummaryStats> {
+    const s = await this.repo.myStats(userId, 'CUMULATIVE');
+    return { score: s.score, nationalRank: s.rank, totalUsers: s.totalRankers };
   }
 }

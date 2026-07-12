@@ -107,4 +107,18 @@ describe('StatsService', () => {
       expect(pagedCall[2]).toBeNull();
     });
   });
+
+  describe('summaryStats', () => {
+    it('maps myStats(CUMULATIVE) to {score, nationalRank, totalUsers}', async () => {
+      repo.myStats.mockResolvedValue({ rank: 127, score: 315, totalRankers: 15284, pointsToNext: 18 });
+      const out = await service.summaryStats('u1');
+      expect(repo.myStats).toHaveBeenCalledWith('u1', 'CUMULATIVE');
+      expect(out).toEqual({ score: 315, nationalRank: 127, totalUsers: 15284 });
+    });
+    it('nationalRank null when unranked', async () => {
+      repo.myStats.mockResolvedValue({ rank: null, score: 0, totalRankers: 5, pointsToNext: 0 });
+      const out = await service.summaryStats('u2');
+      expect(out).toEqual({ score: 0, nationalRank: null, totalUsers: 5 });
+    });
+  });
 });
