@@ -39,7 +39,10 @@ describe('HomeService', () => {
 
   describe('discoveryToday', () => {
     it('maps places with name/address (locale/KO), imageUrl null, default limit 3', async () => {
-      repo.discoveryToday.mockResolvedValue([{ id: 'p1' }, { id: 'p2' }]);
+      repo.discoveryToday.mockResolvedValue([
+        { id: 'p1', imageUrl: 'http://tong/p1.jpg' },
+        { id: 'p2', imageUrl: null },
+      ]);
       repo.placeNames.mockResolvedValue([
         { placeId: 'p1', locale: 'KO', name: '영금정', address: '속초 A' },
         { placeId: 'p2', locale: 'KO', name: '설악산', address: null },
@@ -48,13 +51,13 @@ describe('HomeService', () => {
       expect(repo.discoveryToday).toHaveBeenCalledWith('u1', 3);
       expect(repo.placeNames).toHaveBeenCalledWith(['p1', 'p2'], ['KO', 'KO']);
       expect(out).toEqual([
-        { placeId: 'p1', name: '영금정', address: '속초 A', imageUrl: null },
+        { placeId: 'p1', name: '영금정', address: '속초 A', imageUrl: 'http://tong/p1.jpg' },
         { placeId: 'p2', name: '설악산', address: null, imageUrl: null },
       ]);
     });
 
     it('name falls back to empty when no translation; clamps limit; empty ok', async () => {
-      repo.discoveryToday.mockResolvedValue([{ id: 'p9' }]);
+      repo.discoveryToday.mockResolvedValue([{ id: 'p9', imageUrl: null }]);
       repo.placeNames.mockResolvedValue([]); // 번역 없음 → name ''
       const out = await service.discoveryToday('u1', 'EN', 50); // clamp → 20
       expect(repo.discoveryToday).toHaveBeenCalledWith('u1', 20);

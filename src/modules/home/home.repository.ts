@@ -10,9 +10,9 @@ export class HomeRepository {
   constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
 
   /** 미방문 ACTIVE 장소, 오늘 날짜 시드 정렬(하루 고정). */
-  async discoveryToday(userId: string, limit: number): Promise<{ id: string }[]> {
+  async discoveryToday(userId: string, limit: number): Promise<{ id: string; imageUrl: string | null }[]> {
     return this.db
-      .select({ id: places.id })
+      .select({ id: places.id, imageUrl: places.imageUrl })
       .from(places)
       .where(
         and(

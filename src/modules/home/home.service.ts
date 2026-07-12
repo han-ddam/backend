@@ -23,7 +23,7 @@ export interface DiscoveryItem {
   placeId: string;
   name: string;
   address: string | null;
-  imageUrl: null;
+  imageUrl: string | null;
 }
 
 @Injectable()
@@ -67,7 +67,7 @@ export class HomeService {
     );
     return rows.map((r) => {
       const t = this.pickTrans(trans.filter((x) => x.placeId === r.id), locale);
-      return { placeId: r.id, name: t?.name ?? '', address: t?.address ?? null, imageUrl: null };
+      return { placeId: r.id, name: t?.name ?? '', address: t?.address ?? null, imageUrl: r.imageUrl ?? null };
     });
   }
 
