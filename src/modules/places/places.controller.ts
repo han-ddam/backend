@@ -7,12 +7,16 @@ import {
   ParseUUIDPipe,
   Query,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ReqContext } from '@platform/context/req-context.decorator';
 import type { RequestContext } from '@platform/context/request-context';
 import { STORAGE, type StoragePort } from '@platform/storage/storage.port';
+import { OptionalJwtAuthGuard } from '@modules/auth/guards/optional-jwt-auth.guard';
+import { OptionalUser } from '@modules/auth/decorators/optional-user.decorator';
+import type { AuthUser } from '@modules/auth/auth.types';
 import { PlacesService } from './places.service';
 import { CompositionsService } from './compositions.service';
 import { PlaceListQueryDto, NearbyQueryDto } from './dto/place.dto';
@@ -86,7 +90,12 @@ export class PlacesController {
   /** 여행지 상세 (점수/가중치는 scoring 도메인에서 별도 조회). */
   @ApiOperation({ summary: '여행지 상세' })
   @Get(':id')
-  get(@Param('id') id: string, @ReqContext() ctx: RequestContext) {
-    return this.places.getPlace(id, ctx.locale);
+  @UseGuards(OptionalJwtAuthGuard)
+  get(
+    @Param('id', ParseUUIDPipe) id: string,
+    @OptionalUser() user: AuthUser | null,
+    @ReqContext() ctx: RequestContext,
+  ) {
+    return this.places.getPlace(id, ctx.locale, user?.userId ?? null);
   }
 }
