@@ -1,0 +1,90 @@
+import { StatsService } from './stats.service';
+
+describe('StatsService', () => {
+  let repo: any, dogam: any, service: StatsService;
+
+  beforeEach(() => {
+    repo = {
+      rankPage: jest.fn(),
+      myStats: jest.fn(),
+      dogamPercentFor: jest.fn(),
+      userBasic: jest.fn(),
+    };
+    dogam = { overview: jest.fn() };
+    service = new StatsService(repo, dogam);
+  });
+
+  describe('profile', () => {
+    it('assembles level + dogam + rank', async () => {
+      repo.userBasic.mockResolvedValue({ handle: '@a', displayName: '에이' });
+      repo.myStats.mockResolvedValue({ rank: 127, score: 2450, totalRankers: 15284, pointsToNext: 18 });
+      dogam.overview.mockResolvedValue({ percent: 63, collected: 102, total: 370 });
+      const out = await service.profile('u1');
+      expect(repo.myStats).toHaveBeenCalledWith('u1', 'CUMULATIVE');
+      expect(out).toEqual({
+        handle: '@a', displayName: '에이', avatarUrl: null,
+        level: 7, exp: 350, expForNextLevel: 700,
+        dogamPercent: 63, visitedCount: 102,
+        nationalRank: 127, totalUsers: 15284,
+      });
+    });
+
+    it('rank null when user has no score', async () => {
+      repo.userBasic.mockResolvedValue({ handle: '@b', displayName: '비' });
+      repo.myStats.mockResolvedValue({ rank: null, score: 0, totalRankers: 15284, pointsToNext: 0 });
+      dogam.overview.mockResolvedValue({ percent: 0, collected: 0, total: 370 });
+      const out = await service.profile('u2');
+      expect(out.level).toBe(1);
+      expect(out.exp).toBe(0);
+      expect(out.nationalRank).toBeNull();
+    });
+  });
+
+  describe('rankings', () => {
+    it('builds top3, leaderboard (with dogam% + nextCursor), me, topPercent', async () => {
+      // rankPage called twice: top3 (limit 3) and page (limit+1=3 for limit 2)
+      repo.rankPage.mockImplementation(async (_p: string, limit: number) => {
+        const all = [
+          { rank: 1, userId: 'x', score: '980', handle: '@x' },
+          { rank: 2, userId: 'y', score: '500', handle: '@y' },
+          { rank: 3, userId: 'z', score: '320', handle: '@z' },
+        ];
+        return all.slice(0, limit);
+      });
+      repo.dogamPercentFor.mockResolvedValue(new Map([['x', 40], ['y', 22]]));
+      repo.myStats.mockResolvedValue({ rank: 127, score: 315, totalRankers: 200, pointsToNext: 18 });
+      dogam.overview.mockResolvedValue({ percent: 63, collected: 102, total: 370 });
+
+      const out = await service.rankings('u1', 'NATIONAL', 'CUMULATIVE', undefined, 2);
+      // top3
+      expect(out.top3).toEqual([
+        { rank: 1, handle: '@x', score: 980, badge: null },
+        { rank: 2, handle: '@y', score: 500, badge: null },
+        { rank: 3, handle: '@z', score: 320, badge: null },
+      ]);
+      // leaderboard: limit 2 → fetched 3 → hasNext true, items 2, nextCursor set
+      expect(out.leaderboard.items).toEqual([
+        { rank: 1, handle: '@x', score: 980, dogamPercent: 40 },
+        { rank: 2, handle: '@y', score: 500, dogamPercent: 22 },
+      ]);
+      expect(out.leaderboard.nextCursor).toEqual(expect.any(String));
+      // me
+      expect(out.me).toEqual({ rank: 127, score: 315, dogamPercent: 63, pointsToNext: 18 });
+      // topPercent = round(127/200*100) = 64
+      expect(out.topPercent).toBe(64);
+    });
+
+    it('last page → nextCursor null; unranked me → topPercent null', async () => {
+      repo.rankPage.mockImplementation(async (_p: string, limit: number) =>
+        [{ rank: 1, userId: 'x', score: '980', handle: '@x' }].slice(0, limit),
+      );
+      repo.dogamPercentFor.mockResolvedValue(new Map([['x', 40]]));
+      repo.myStats.mockResolvedValue({ rank: null, score: 0, totalRankers: 1, pointsToNext: 0 });
+      dogam.overview.mockResolvedValue({ percent: 0, collected: 0, total: 370 });
+      const out = await service.rankings('u9', 'NATIONAL', 'MONTHLY', undefined, 20);
+      expect(out.leaderboard.nextCursor).toBeNull();
+      expect(out.me).toEqual({ rank: null, score: 0, dogamPercent: 0, pointsToNext: 0 });
+      expect(out.topPercent).toBeNull();
+    });
+  });
+});
