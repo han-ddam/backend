@@ -7,3 +7,7 @@ coverage/
 .DS_Store
 .idea/
 .vscode/
+
+# scratch design docs / local claude config (not tracked)
+docs/superpowers/
+.claude/
