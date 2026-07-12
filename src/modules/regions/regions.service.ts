@@ -21,7 +21,7 @@ export interface RegionPlaceItem {
   name: string;
   address: string | null;
   imageUrl: string | null;
-  visitStatus: 'VISITED' | 'NONE';
+  visitStatus: 'VISITED' | 'PLANNED' | 'NONE';
 }
 export interface RegionPlacesPage {
   items: RegionPlaceItem[];
@@ -70,22 +70,21 @@ export class RegionsService {
   async listPlaces(params: {
     code: string;
     userId: string | null;
-    onlyVisited: boolean;
+    status: 'ALL' | 'VISITED' | 'PLANNED';
     locale: Locale;
     cursor?: string;
     limit: number;
   }): Promise<RegionPlacesPage> {
     const limit = Math.min(Math.max(params.limit, 1), 100);
-    if (params.onlyVisited && !params.userId) {
-      // Guests have zero visits by definition, so the "visited only" filter
-      // must yield an empty page rather than falling back to all places.
+    if (params.status !== 'ALL' && !params.userId) {
+      // 게스트는 방문·찜이 없으므로 VISITED/PLANNED 필터는 빈 페이지.
       const all = await this.repo.countPlaces(params.code);
       return { items: [], counts: { all, visited: 0, planned: 0 }, nextCursor: null };
     }
     const rows = await this.repo.listPlaces({
       code: params.code,
       userId: params.userId,
-      onlyVisited: params.onlyVisited,
+      status: params.status,
       limit,
       cursor: params.cursor,
     });
@@ -101,12 +100,13 @@ export class RegionsService {
         name: t?.name ?? '',
         address: t?.address ?? null,
         imageUrl: r.imageUrl ?? null,
-        visitStatus: r.visited ? 'VISITED' : 'NONE',
+        visitStatus: r.visited ? 'VISITED' : r.bookmarked ? 'PLANNED' : 'NONE',
       };
     });
     const all = await this.repo.countPlaces(params.code);
     const visited = params.userId ? await this.repo.countVisited(params.userId, params.code) : 0;
-    return { items, counts: { all, visited, planned: 0 }, nextCursor: page.nextCursor };
+    const planned = params.userId ? await this.repo.countPlanned(params.userId, params.code) : 0;
+    return { items, counts: { all, visited, planned }, nextCursor: page.nextCursor };
   }
 
   async listRecommended(params: {

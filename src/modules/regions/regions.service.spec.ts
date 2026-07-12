@@ -11,6 +11,7 @@ describe('RegionsService', () => {
       regionNames: jest.fn(),
       countPlaces: jest.fn(),
       countVisited: jest.fn(),
+      countPlanned: jest.fn(),
       listPlaces: jest.fn(),
       placeTransForMany: jest.fn(),
       listRecommended: jest.fn(),
@@ -51,27 +52,28 @@ describe('RegionsService', () => {
   describe('listPlaces', () => {
     it('maps visitStatus and builds counts + nextCursor', async () => {
       repo.listPlaces.mockResolvedValue([
-        { id: 'p1', createdAt: new Date('2026-07-07T00:00:00Z'), visited: true, imageUrl: 'http://tong/p1.jpg' },
+        { id: 'p1', createdAt: new Date('2026-07-07T00:00:00Z'), visited: true, bookmarked: false, imageUrl: 'http://tong/p1.jpg' },
       ]);
       repo.placeTransForMany.mockResolvedValue([
         { placeId: 'p1', locale: 'KO', name: '영금정', address: '속초' },
       ]);
       repo.countPlaces.mockResolvedValue(5);
       repo.countVisited.mockResolvedValue(1);
+      repo.countPlanned.mockResolvedValue(2);
       const out = await service.listPlaces({
-        code: '32', userId: 'u1', onlyVisited: false, locale: 'KO', limit: 20,
+        code: '32', userId: 'u1', status: 'ALL', locale: 'KO', limit: 20,
       });
       expect(out.items[0]).toEqual({
         placeId: 'p1', name: '영금정', address: '속초', imageUrl: 'http://tong/p1.jpg', visitStatus: 'VISITED',
       });
-      expect(out.counts).toEqual({ all: 5, visited: 1, planned: 0 });
+      expect(out.counts).toEqual({ all: 5, visited: 1, planned: 2 });
       expect(out.nextCursor).toBeNull();
     });
 
     it('guest + onlyVisited short-circuits to an empty page instead of listing unvisited places', async () => {
       repo.countPlaces.mockResolvedValue(5);
       const out = await service.listPlaces({
-        code: '32', userId: null, onlyVisited: true, locale: 'KO', limit: 20,
+        code: '32', userId: null, status: 'VISITED', locale: 'KO', limit: 20,
       });
       expect(out).toEqual({
         items: [],
@@ -80,6 +82,26 @@ describe('RegionsService', () => {
       });
       expect(repo.listPlaces).not.toHaveBeenCalled();
       expect(repo.placeTransForMany).not.toHaveBeenCalled();
+    });
+
+    it('PLANNED filter maps bookmarked-not-visited rows', async () => {
+      repo.listPlaces.mockResolvedValue([
+        { id: 'p2', createdAt: new Date('2026-07-06T00:00:00Z'), visited: false, bookmarked: true, imageUrl: null },
+      ]);
+      repo.placeTransForMany.mockResolvedValue([
+        { placeId: 'p2', locale: 'KO', name: '설악산', address: null },
+      ]);
+      repo.countPlaces.mockResolvedValue(5);
+      repo.countVisited.mockResolvedValue(1);
+      repo.countPlanned.mockResolvedValue(1);
+      const out = await service.listPlaces({
+        code: '32', userId: 'u1', status: 'PLANNED', locale: 'KO', limit: 20,
+      });
+      expect(repo.listPlaces).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'PLANNED', userId: 'u1' }),
+      );
+      expect(out.items[0].visitStatus).toBe('PLANNED');
+      expect(out.counts.planned).toBe(1);
     });
   });
 

@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, inArray, like, lt, or, sql, type SQL } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import { decodeCursor } from '@platform/pagination/cursor';
-import { regions, regionTrans, places, placeTrans, visits, type localeEnum } from '@db/schema';
+import { regions, regionTrans, places, placeTrans, visits, userPlaceBookmarks, type localeEnum } from '@db/schema';
 
 type Locale = (typeof localeEnum.enumValues)[number];
 
@@ -62,13 +62,30 @@ export class RegionsRepository {
     return Number(value);
   }
 
+  /** 지역 내 찜·미방문 수. */
+  async countPlanned(userId: string, code: string): Promise<number> {
+    const [{ value }] = await this.db
+      .select({ value: sql<number>`count(*)::int` })
+      .from(userPlaceBookmarks)
+      .innerJoin(places, eq(places.id, userPlaceBookmarks.placeId))
+      .where(
+        and(
+          eq(userPlaceBookmarks.userId, userId),
+          like(places.regionCode, `${code}\\_%`),
+          eq(places.status, 'ACTIVE'),
+          sql`not exists (select 1 from ${visits} v where v.place_id = ${places.id} and v.user_id = ${userId})`,
+        ),
+      );
+    return Number(value);
+  }
+
   async listPlaces(p: {
     code: string;
     userId: string | null;
-    onlyVisited: boolean;
+    status: 'ALL' | 'VISITED' | 'PLANNED';
     limit: number;
     cursor?: string;
-  }): Promise<Array<{ id: string; createdAt: Date; visited: boolean; imageUrl: string | null }>> {
+  }): Promise<Array<{ id: string; createdAt: Date; visited: boolean; bookmarked: boolean; imageUrl: string | null }>> {
     const c = decodeCursor(p.cursor);
     const conds: SQL[] = [
       like(places.regionCode, `${p.code}\\_%`),
@@ -82,24 +99,41 @@ export class RegionsRepository {
         )!,
       );
     }
-    const visited = p.userId
-      ? sql<boolean>`${visits.id} is not null`
-      : sql<boolean>`false`;
 
-    if (p.userId) {
-      if (p.onlyVisited) conds.push(sql`${visits.id} is not null`);
+    if (!p.userId) {
+      // 게스트: 방문·찜 0. (status VISITED/PLANNED는 서비스가 사전 차단 → 여기선 ALL만 도달.)
       return this.db
-        .select({ id: places.id, createdAt: places.createdAt, visited, imageUrl: places.imageUrl })
+        .select({
+          id: places.id,
+          createdAt: places.createdAt,
+          visited: sql<boolean>`false`,
+          bookmarked: sql<boolean>`false`,
+          imageUrl: places.imageUrl,
+        })
         .from(places)
-        .leftJoin(visits, and(eq(visits.placeId, places.id), eq(visits.userId, p.userId)))
         .where(and(...conds))
         .orderBy(desc(places.createdAt), desc(places.id))
         .limit(p.limit + 1);
     }
 
+    if (p.status === 'VISITED') conds.push(sql`${visits.id} is not null`);
+    if (p.status === 'PLANNED') {
+      conds.push(sql`${userPlaceBookmarks.placeId} is not null and ${visits.id} is null`);
+    }
     return this.db
-      .select({ id: places.id, createdAt: places.createdAt, visited, imageUrl: places.imageUrl })
+      .select({
+        id: places.id,
+        createdAt: places.createdAt,
+        visited: sql<boolean>`${visits.id} is not null`,
+        bookmarked: sql<boolean>`${userPlaceBookmarks.placeId} is not null`,
+        imageUrl: places.imageUrl,
+      })
       .from(places)
+      .leftJoin(visits, and(eq(visits.placeId, places.id), eq(visits.userId, p.userId)))
+      .leftJoin(
+        userPlaceBookmarks,
+        and(eq(userPlaceBookmarks.placeId, places.id), eq(userPlaceBookmarks.userId, p.userId)),
+      )
       .where(and(...conds))
       .orderBy(desc(places.createdAt), desc(places.id))
       .limit(p.limit + 1);
