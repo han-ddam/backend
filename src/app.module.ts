@@ -21,6 +21,7 @@ import { AgreementsModule } from '@modules/agreements/agreements.module';
 import { CertificationsModule } from '@modules/certifications/certifications.module';
 import { DogamModule } from '@modules/dogam/dogam.module';
 import { StatsModule } from '@modules/stats/stats.module';
+import { HomeModule } from '@modules/home/home.module';
 
 /**
  * Root composition. PlatformModule (global) provides infra to every domain
@@ -54,6 +55,7 @@ import { StatsModule } from '@modules/stats/stats.module';
     CertificationsModule,
     DogamModule,
     StatsModule,
+    HomeModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
