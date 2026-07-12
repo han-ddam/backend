@@ -49,7 +49,7 @@ describe('CollectionsService', () => {
       ]);
       expect(out.nextCursor).not.toBeNull();
       // fetch uses limit+1
-      expect(repo.detailPlacesPage).toHaveBeenCalledWith('c1', 'u1', null, 2);
+      expect(repo.detailPlacesPage).toHaveBeenCalledWith('c1', 'u1', null, 1);
     });
 
     it('guest gets NONE visitStatus', async () => {

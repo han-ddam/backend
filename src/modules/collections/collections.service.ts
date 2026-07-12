@@ -44,7 +44,7 @@ export class CollectionsService {
     const [trans, counts, rows] = await Promise.all([
       this.repo.collectionTrans([id], [locale, 'KO']),
       this.repo.collectionCounts(id, userId),
-      this.repo.detailPlacesPage(id, userId, decodeSeqCursor(cursor), lim + 1),
+      this.repo.detailPlacesPage(id, userId, decodeSeqCursor(cursor), lim),
     ]);
     const t = this.pickTrans(trans, locale);
     const page = buildSeqPage(rows, lim, (r) => ({ seq: r.seq, id: r.placeId }));
