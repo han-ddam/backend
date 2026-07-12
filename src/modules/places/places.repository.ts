@@ -218,7 +218,7 @@ export class PlacesRepository {
     lng: number,
     radiusM: number,
     limit: number,
-  ): Promise<{ id: string; regionCode: string; distanceM: number }[]> {
+  ): Promise<{ id: string; regionCode: string; distanceM: number; imageUrl: string | null }[]> {
     const target = sql`ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography`;
     const placePoint = sql`ST_SetSRID(ST_MakePoint(${places.lng}, ${places.lat}), 4326)::geography`;
     const rows = await this.db
@@ -226,6 +226,7 @@ export class PlacesRepository {
         id: places.id,
         regionCode: places.regionCode,
         distanceM: sql<number>`ST_Distance(${placePoint}, ${target})`,
+        imageUrl: places.imageUrl,
       })
       .from(places)
       .where(
@@ -238,6 +239,6 @@ export class PlacesRepository {
       )
       .orderBy(sql`ST_Distance(${placePoint}, ${target})`)
       .limit(limit);
-    return rows.map((r) => ({ id: r.id, regionCode: r.regionCode, distanceM: Number(r.distanceM) }));
+    return rows.map((r) => ({ id: r.id, regionCode: r.regionCode, distanceM: Number(r.distanceM), imageUrl: r.imageUrl }));
   }
 }

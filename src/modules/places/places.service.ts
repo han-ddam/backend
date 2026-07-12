@@ -65,7 +65,7 @@ export interface NearbyItem {
   address: string | null;
   distanceM: number;
   regionCode: string;
-  thumbnailUrl: null;
+  thumbnailUrl: string | null;
 }
 
 @Injectable()
@@ -242,7 +242,7 @@ export class PlacesService {
         address: t?.address ?? null,
         distanceM: Math.round(r.distanceM),
         regionCode: r.regionCode,
-        thumbnailUrl: null,
+        thumbnailUrl: r.imageUrl ?? null,
       };
     });
   }
