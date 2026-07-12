@@ -13,13 +13,21 @@ interface GoogleTokenInfo {
 /**
  * Verifies a Google ID token via Google's tokeninfo endpoint.
  * Client (RN Google Sign-In) sends the ID token; we validate signature/expiry
- * there and (if GOOGLE_CLIENT_ID is set) check the audience.
+ * there and enforce the token aud must be in the comma-separated GOOGLE_CLIENT_ID
+ * allowlist (fail-closed: rejects login if GOOGLE_CLIENT_ID is unset or empty).
  */
 @Injectable()
 export class GoogleOAuthAdapter implements OAuthVerifierPort {
   constructor(private readonly config: ConfigService) {}
 
   async verify(idToken: string): Promise<OAuthProfile> {
+    const allowed = (this.config.get<string>('GOOGLE_CLIENT_ID') ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (allowed.length === 0) {
+      throw new UnauthorizedException('Google login not configured');
+    }
     const res = await fetch(
       `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`,
     );
@@ -30,8 +38,7 @@ export class GoogleOAuthAdapter implements OAuthVerifierPort {
     if (!data.sub) {
       throw new UnauthorizedException('Invalid Google token');
     }
-    const expectedAud = this.config.get<string>('GOOGLE_CLIENT_ID');
-    if (expectedAud && data.aud !== expectedAud) {
+    if (!allowed.includes(data.aud ?? '')) {
       throw new UnauthorizedException('Google token audience mismatch');
     }
     return {
