@@ -86,5 +86,25 @@ describe('StatsService', () => {
       expect(out.me).toEqual({ rank: null, score: 0, dogamPercent: 0, pointsToNext: 0 });
       expect(out.topPercent).toBeNull();
     });
+
+    it('malformed cursor is treated as first page (no throw, rankPage called with null cursor)', async () => {
+      repo.rankPage.mockImplementation(async (_p: string, limit: number) =>
+        [{ rank: 1, userId: 'x', score: '980', handle: '@x' }].slice(0, limit),
+      );
+      repo.dogamPercentFor.mockResolvedValue(new Map([['x', 40]]));
+      repo.myStats.mockResolvedValue({ rank: 1, score: 980, totalRankers: 1, pointsToNext: 0 });
+      dogam.overview.mockResolvedValue({ percent: 40, collected: 1, total: 370 });
+
+      const malformedCursor = Buffer.from('abc|xyz').toString('base64url');
+
+      await expect(
+        service.rankings('u1', 'NATIONAL', 'CUMULATIVE', malformedCursor, 20),
+      ).resolves.toBeDefined();
+
+      // second rankPage call is the paged leaderboard call (first is top3 with limit 3, cursor null)
+      expect(repo.rankPage).toHaveBeenCalledWith(expect.anything(), expect.any(Number), null);
+      const pagedCall = repo.rankPage.mock.calls[1];
+      expect(pagedCall[2]).toBeNull();
+    });
   });
 });

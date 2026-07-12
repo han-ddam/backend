@@ -37,6 +37,8 @@ function decodeRankCursor(c?: string): { score: string; userId: string } | null 
   try {
     const [score, userId] = Buffer.from(c, 'base64url').toString('utf8').split('|');
     if (!score || !userId) return null;
+    if (!/^\d+(\.\d+)?$/.test(score)) return null;
+    if (!/^[0-9a-fA-F-]{36}$/.test(userId)) return null;
     return { score, userId };
   } catch {
     return null;
