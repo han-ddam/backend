@@ -12,3 +12,4 @@ export * from './scoring';
 export * from './certifications';
 export * from './score-events';
 export * from './compositions';
+export * from './collections';
