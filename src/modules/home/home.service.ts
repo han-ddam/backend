@@ -35,8 +35,10 @@ export class HomeService {
   ) {}
 
   async summary(userId: string): Promise<SummaryResult> {
-    const s = await this.stats.summaryStats(userId);
-    const dg = await this.dogam.overview(userId);
+    const [s, dg] = await Promise.all([
+      this.stats.summaryStats(userId),
+      this.dogam.overview(userId),
+    ]);
     return {
       score: s.score,
       nationalRank: s.nationalRank,
