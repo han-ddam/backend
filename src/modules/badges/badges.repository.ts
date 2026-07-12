@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import { badges, badgeTrans, userBadges, scoreEvents, visits, localeEnum } from '@db/schema';
 
@@ -130,7 +130,7 @@ export class BadgesRepository {
     const rows = await this.db
       .select({ id: badges.id, code: badges.code, tier: badges.tier, criteriaType: badges.criteriaType, criteriaValue: badges.criteriaValue, status: badges.status, seq: badges.seq })
       .from(badges)
-      .orderBy(desc(badges.seq))
+      .orderBy(asc(badges.seq), asc(badges.id))
       .limit(params.limit)
       .offset(params.offset);
     const [{ value }] = await this.db.select({ value: sql<number>`count(*)::int` }).from(badges);
