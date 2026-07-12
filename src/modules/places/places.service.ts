@@ -23,6 +23,10 @@ export interface PlaceView {
   mission: string | null;
   tags: string[];
   rarityWeight: number;
+  imageUrl: string | null;
+  rating: number | null;
+  ratingCount: number;
+  visitStatus: 'VISITED' | 'NONE';
   lat: number | null;
   lng: number | null;
 }
@@ -69,13 +73,14 @@ export class PlacesService {
     private readonly id: IdService,
   ) {}
 
-  async getPlace(id: string, locale: Locale): Promise<PlaceView> {
+  async getPlace(id: string, locale: Locale, userId?: string | null): Promise<PlaceView> {
     const place = await this.repo.findById(id);
     if (!place || place.status !== 'ACTIVE') {
       throw new NotFoundException('Place not found');
     }
     const trans = await this.repo.transFor(id, [locale, 'KO']);
     const t = this.pickTrans(trans, locale);
+    const visited = userId ? await this.repo.hasVisit(userId, id) : false;
     return {
       id: place.id,
       regionCode: place.regionCode,
@@ -85,6 +90,10 @@ export class PlacesService {
       mission: t?.mission ?? null,
       tags: place.tags,
       rarityWeight: Number(place.rarityWeight),
+      imageUrl: place.imageUrl ?? null,
+      rating: null,
+      ratingCount: 0,
+      visitStatus: visited ? 'VISITED' : 'NONE',
       lat: place.lat,
       lng: place.lng,
     };

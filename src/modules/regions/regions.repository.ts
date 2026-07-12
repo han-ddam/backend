@@ -68,7 +68,7 @@ export class RegionsRepository {
     onlyVisited: boolean;
     limit: number;
     cursor?: string;
-  }): Promise<Array<{ id: string; createdAt: Date; visited: boolean }>> {
+  }): Promise<Array<{ id: string; createdAt: Date; visited: boolean; imageUrl: string | null }>> {
     const c = decodeCursor(p.cursor);
     const conds: SQL[] = [
       like(places.regionCode, `${p.code}\\_%`),
@@ -89,7 +89,7 @@ export class RegionsRepository {
     if (p.userId) {
       if (p.onlyVisited) conds.push(sql`${visits.id} is not null`);
       return this.db
-        .select({ id: places.id, createdAt: places.createdAt, visited })
+        .select({ id: places.id, createdAt: places.createdAt, visited, imageUrl: places.imageUrl })
         .from(places)
         .leftJoin(visits, and(eq(visits.placeId, places.id), eq(visits.userId, p.userId)))
         .where(and(...conds))
@@ -98,7 +98,7 @@ export class RegionsRepository {
     }
 
     return this.db
-      .select({ id: places.id, createdAt: places.createdAt, visited })
+      .select({ id: places.id, createdAt: places.createdAt, visited, imageUrl: places.imageUrl })
       .from(places)
       .where(and(...conds))
       .orderBy(desc(places.createdAt), desc(places.id))
@@ -125,7 +125,7 @@ export class RegionsRepository {
     code: string;
     userId: string | null;
     limit: number;
-  }): Promise<{ id: string }[]> {
+  }): Promise<{ id: string; imageUrl: string | null }[]> {
     const conds: SQL[] = [
       like(places.regionCode, `${p.code}\\_%`),
       eq(places.status, 'ACTIVE'),
@@ -136,7 +136,7 @@ export class RegionsRepository {
       );
     }
     return this.db
-      .select({ id: places.id })
+      .select({ id: places.id, imageUrl: places.imageUrl })
       .from(places)
       .where(and(...conds))
       .orderBy(desc(places.basePoints), desc(places.id))

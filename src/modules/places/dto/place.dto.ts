@@ -91,3 +91,10 @@ export class CreateCompositionDto extends createZodDto(
       .describe('번역(KO 필수)'),
   }),
 ) {}
+
+export class PlaceCertFeedQueryDto extends createZodDto(
+  z.object({
+    cursor: z.string().optional(),
+    limit: z.coerce.number().int().min(1).max(50).optional().describe('최대 개수(기본 8)'),
+  }),
+) {}

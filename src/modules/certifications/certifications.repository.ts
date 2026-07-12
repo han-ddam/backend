@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, lt, or } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import { IdService } from '@platform/id/id.service';
 import { ClockService } from '@platform/clock/clock.service';
-import { certifications, scoreEvents, visits, places, type Certification } from '@db/schema';
+import { decodeCursor } from '@platform/pagination/cursor';
+import { certifications, scoreEvents, visits, places, users, type Certification } from '@db/schema';
 import type { ScorePreview } from '@modules/scoring/score-calculator';
 
 interface CreateInput {
@@ -181,5 +182,39 @@ export class CertificationsRepository {
       alreadyCollected: cert.status === 'ACCEPTED' && !ev && !!collected,
       rejectReason: cert.rejectReason,
     };
+  }
+
+  /** place 공개 인증사진 피드 — PUBLIC + ACCEPTED, 최신순(createdAt DESC, id DESC), users.handle 조인. */
+  async publicFeedForPlace(
+    placeId: string,
+    cursor: string | undefined,
+    limit: number,
+  ): Promise<Array<{ id: string; createdAt: Date; imageKey: string; handle: string }>> {
+    const c = decodeCursor(cursor);
+    const conds = [
+      eq(certifications.placeId, placeId),
+      eq(certifications.status, 'ACCEPTED'),
+      eq(certifications.visibility, 'PUBLIC'),
+    ];
+    if (c) {
+      conds.push(
+        or(
+          lt(certifications.createdAt, c.createdAt),
+          and(eq(certifications.createdAt, c.createdAt), lt(certifications.id, c.id)),
+        )!,
+      );
+    }
+    return this.db
+      .select({
+        id: certifications.id,
+        createdAt: certifications.createdAt,
+        imageKey: certifications.imageKey,
+        handle: users.handle,
+      })
+      .from(certifications)
+      .innerJoin(users, eq(users.id, certifications.userId))
+      .where(and(...conds))
+      .orderBy(desc(certifications.createdAt), desc(certifications.id))
+      .limit(limit + 1);
   }
 }

@@ -5,6 +5,7 @@ import { decodeCursor } from '@platform/pagination/cursor';
 import {
   places,
   placeTrans,
+  visits,
   type Place,
   type PlaceTrans,
   type localeEnum,
@@ -42,6 +43,16 @@ export class PlacesRepository {
   async findById(id: string): Promise<Place | undefined> {
     const [row] = await this.db.select().from(places).where(eq(places.id, id));
     return row;
+  }
+
+  /** 해당 유저가 이 place를 방문(visit)했는지. */
+  async hasVisit(userId: string, placeId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: visits.id })
+      .from(visits)
+      .where(and(eq(visits.userId, userId), eq(visits.placeId, placeId)))
+      .limit(1);
+    return !!row;
   }
 
   /** Translations for a place in the given locales (caller picks/fallbacks). */

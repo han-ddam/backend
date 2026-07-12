@@ -51,7 +51,7 @@ describe('RegionsService', () => {
   describe('listPlaces', () => {
     it('maps visitStatus and builds counts + nextCursor', async () => {
       repo.listPlaces.mockResolvedValue([
-        { id: 'p1', createdAt: new Date('2026-07-07T00:00:00Z'), visited: true },
+        { id: 'p1', createdAt: new Date('2026-07-07T00:00:00Z'), visited: true, imageUrl: 'http://tong/p1.jpg' },
       ]);
       repo.placeTransForMany.mockResolvedValue([
         { placeId: 'p1', locale: 'KO', name: '영금정', address: '속초' },
@@ -62,7 +62,7 @@ describe('RegionsService', () => {
         code: '32', userId: 'u1', onlyVisited: false, locale: 'KO', limit: 20,
       });
       expect(out.items[0]).toEqual({
-        placeId: 'p1', name: '영금정', address: '속초', imageUrl: null, visitStatus: 'VISITED',
+        placeId: 'p1', name: '영금정', address: '속초', imageUrl: 'http://tong/p1.jpg', visitStatus: 'VISITED',
       });
       expect(out.counts).toEqual({ all: 5, visited: 1, planned: 0 });
       expect(out.nextCursor).toBeNull();
@@ -84,8 +84,8 @@ describe('RegionsService', () => {
   });
 
   describe('listRecommended', () => {
-    it('maps recommended items with null imageUrl', async () => {
-      repo.listRecommended.mockResolvedValue([{ id: 'p2' }]);
+    it('maps recommended items with imageUrl', async () => {
+      repo.listRecommended.mockResolvedValue([{ id: 'p2', imageUrl: null }]);
       repo.placeTransForMany.mockResolvedValue([
         { placeId: 'p2', locale: 'KO', name: '설악산', address: '속초' },
       ]);

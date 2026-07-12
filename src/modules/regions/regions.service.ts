@@ -20,7 +20,7 @@ export interface RegionPlaceItem {
   placeId: string;
   name: string;
   address: string | null;
-  imageUrl: null;
+  imageUrl: string | null;
   visitStatus: 'VISITED' | 'NONE';
 }
 export interface RegionPlacesPage {
@@ -32,7 +32,7 @@ export interface RecommendedItem {
   placeId: string;
   name: string;
   address: string | null;
-  imageUrl: null;
+  imageUrl: string | null;
 }
 
 @Injectable()
@@ -100,7 +100,7 @@ export class RegionsService {
         placeId: r.id,
         name: t?.name ?? '',
         address: t?.address ?? null,
-        imageUrl: null,
+        imageUrl: r.imageUrl ?? null,
         visitStatus: r.visited ? 'VISITED' : 'NONE',
       };
     });
@@ -127,7 +127,7 @@ export class RegionsService {
     );
     return rows.map((r) => {
       const t = this.pickTrans(trans, r.id, params.locale);
-      return { placeId: r.id, name: t?.name ?? '', address: t?.address ?? null, imageUrl: null };
+      return { placeId: r.id, name: t?.name ?? '', address: t?.address ?? null, imageUrl: r.imageUrl ?? null };
     });
   }
 
