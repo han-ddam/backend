@@ -13,7 +13,8 @@ interface GoogleTokenInfo {
 /**
  * Verifies a Google ID token via Google's tokeninfo endpoint.
  * Client (RN Google Sign-In) sends the ID token; we validate signature/expiry
- * there and (if GOOGLE_CLIENT_ID is set) check the audience.
+ * there and enforce the token aud must be in the comma-separated GOOGLE_CLIENT_ID
+ * allowlist (fail-closed: rejects login if GOOGLE_CLIENT_ID is unset or empty).
  */
 @Injectable()
 export class GoogleOAuthAdapter implements OAuthVerifierPort {
