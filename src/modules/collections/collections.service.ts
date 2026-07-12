@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { localeEnum } from '@db/schema';
 import { IdService } from '@platform/id/id.service';
 import { DogamService } from '@modules/dogam/dogam.service';
@@ -197,6 +197,52 @@ export class CollectionsService {
     const last = pageRows[pageRows.length - 1];
     const nextCursor = hasNext && last ? encodeMergedTheme(last.seq, last.id) : null;
     return { items, nextCursor };
+  }
+
+  async adminCreate(cmd: {
+    seq: number;
+    status?: 'ACTIVE' | 'HIDDEN';
+    translations: { locale: string; title: string; description?: string }[];
+  }): Promise<{ collectionId: string }> {
+    if (!cmd.translations.some((t) => t.locale === 'KO')) {
+      throw new BadRequestException('KO translation is required');
+    }
+    const collectionId = this.id.generate();
+    await this.repo.create(
+      { id: collectionId, seq: cmd.seq, status: cmd.status ?? 'ACTIVE' },
+      cmd.translations.map((t) => ({ locale: t.locale, title: t.title, description: t.description ?? null })),
+    );
+    return { collectionId };
+  }
+
+  async adminList(params: { page: number; limit: number }) {
+    const { rows, total } = await this.repo.adminListPage({
+      limit: params.limit,
+      offset: (params.page - 1) * params.limit,
+    });
+    return { items: rows, total, page: params.page, limit: params.limit };
+  }
+
+  async adminUpdate(id: string, patch: { seq?: number; status?: 'ACTIVE' | 'HIDDEN' }): Promise<{ id: string }> {
+    const row = await this.repo.updateMeta(id, patch);
+    if (!row) throw new NotFoundException('Collection not found');
+    return row;
+  }
+
+  async adminDelete(id: string): Promise<void> {
+    const ok = await this.repo.deleteById(id);
+    if (!ok) throw new NotFoundException('Collection not found');
+  }
+
+  async adminAddPlace(collectionId: string, placeId: string, seq: number): Promise<void> {
+    if (!(await this.repo.collectionExists(collectionId))) throw new NotFoundException('Collection not found');
+    if (!(await this.repo.placeActive(placeId))) throw new NotFoundException('Place not found');
+    await this.repo.addPlace(collectionId, placeId, seq);
+  }
+
+  async adminRemovePlace(collectionId: string, placeId: string): Promise<void> {
+    const ok = await this.repo.removePlace(collectionId, placeId);
+    if (!ok) throw new NotFoundException('Membership not found');
   }
 
   private pickTrans(

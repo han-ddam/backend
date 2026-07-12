@@ -8,7 +8,7 @@ import {
   places,
   placeTrans,
   visits,
-  type localeEnum,
+  localeEnum,
 } from '@db/schema';
 
 type Locale = (typeof localeEnum.enumValues)[number];
@@ -210,5 +210,108 @@ export class CollectionsRepository {
       .where(eq(collections.status, 'ACTIVE'))
       .limit(1);
     return !!row;
+  }
+
+  async collectionExists(id: string): Promise<boolean> {
+    const [row] = await this.db.select({ id: collections.id }).from(collections).where(eq(collections.id, id));
+    return !!row;
+  }
+
+  async placeActive(placeId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: places.id })
+      .from(places)
+      .where(and(eq(places.id, placeId), eq(places.status, 'ACTIVE')));
+    return !!row;
+  }
+
+  async create(
+    input: { id: string; seq: number; status: 'ACTIVE' | 'HIDDEN' },
+    trans: { locale: string; title: string; description: string | null }[],
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx.insert(collections).values({ id: input.id, seq: input.seq, status: input.status });
+      await tx.insert(collectionTrans).values(
+        trans.map((t) => ({
+          collectionId: input.id,
+          locale: t.locale as (typeof localeEnum.enumValues)[number],
+          title: t.title,
+          description: t.description,
+        })),
+      );
+    });
+  }
+
+  async updateMeta(
+    id: string,
+    patch: { seq?: number; status?: 'ACTIVE' | 'HIDDEN' },
+  ): Promise<{ id: string } | null> {
+    const [row] = await this.db
+      .update(collections)
+      .set({
+        ...(patch.seq !== undefined ? { seq: patch.seq } : {}),
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        updatedAt: sql`now()`,
+      })
+      .where(eq(collections.id, id))
+      .returning({ id: collections.id });
+    return row ?? null;
+  }
+
+  async deleteById(id: string): Promise<boolean> {
+    const rows = await this.db.delete(collections).where(eq(collections.id, id)).returning({ id: collections.id });
+    return rows.length > 0;
+  }
+
+  /** 멤버십 upsert (중복 시 seq 갱신). */
+  async addPlace(collectionId: string, placeId: string, seq: number): Promise<void> {
+    await this.db
+      .insert(collectionPlace)
+      .values({ collectionId, placeId, seq })
+      .onConflictDoUpdate({ target: [collectionPlace.collectionId, collectionPlace.placeId], set: { seq } });
+  }
+
+  async removePlace(collectionId: string, placeId: string): Promise<boolean> {
+    const rows = await this.db
+      .delete(collectionPlace)
+      .where(and(eq(collectionPlace.collectionId, collectionId), eq(collectionPlace.placeId, placeId)))
+      .returning({ pid: collectionPlace.placeId });
+    return rows.length > 0;
+  }
+
+  /** 어드민 offset 목록(seq ASC) + total + 소속 수 + KO/폴백 title. */
+  async adminListPage(params: {
+    limit: number;
+    offset: number;
+  }): Promise<{ rows: { id: string; seq: number; status: string; title: string; total: number }[]; total: number }> {
+    const base = await this.db
+      .select({ id: collections.id, seq: collections.seq, status: collections.status })
+      .from(collections)
+      .orderBy(asc(collections.seq), asc(collections.id))
+      .limit(params.limit)
+      .offset(params.offset);
+    const [{ value }] = await this.db.select({ value: sql<number>`count(*)::int` }).from(collections);
+    const ids = base.map((r) => r.id);
+    const titles = await this.collectionTrans(ids, [...(['KO'] as (typeof localeEnum.enumValues)[number][])]);
+    const counts =
+      ids.length === 0
+        ? []
+        : await this.db
+            .select({ cid: collectionPlace.collectionId, total: sql<number>`count(*)::int` })
+            .from(collectionPlace)
+            .where(inArray(collectionPlace.collectionId, ids))
+            .groupBy(collectionPlace.collectionId);
+    const countMap = new Map(counts.map((c) => [c.cid, Number(c.total)]));
+    const titleMap = new Map(titles.map((t) => [t.collectionId, t.title]));
+    return {
+      rows: base.map((r) => ({
+        id: r.id,
+        seq: r.seq,
+        status: r.status,
+        title: titleMap.get(r.id) ?? '',
+        total: countMap.get(r.id) ?? 0,
+      })),
+      total: Number(value),
+    };
   }
 }

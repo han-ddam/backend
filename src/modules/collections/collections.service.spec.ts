@@ -16,6 +16,14 @@ describe('CollectionsService', () => {
       themeThumbnails: jest.fn(),
       regionThumbnails: jest.fn(),
       anyActiveTheme: jest.fn(),
+      collectionExists: jest.fn(),
+      placeActive: jest.fn(),
+      create: jest.fn(),
+      updateMeta: jest.fn(),
+      deleteById: jest.fn(),
+      addPlace: jest.fn(),
+      removePlace: jest.fn(),
+      adminListPage: jest.fn(),
     };
     dogam = { regions: jest.fn() };
     let n = 0;
@@ -153,6 +161,61 @@ describe('CollectionsService', () => {
 
       expect(dogam.regions).not.toHaveBeenCalled();
       expect(out.items).toEqual([{ kind: 'THEME', id: 'c2', title: '등대', filled: 1, total: 3, thumbnails: [] }]);
+    });
+  });
+
+  describe('admin', () => {
+    it('adminCreate requires KO translation', async () => {
+      await expect(
+        service.adminCreate({ seq: 1, translations: [{ locale: 'EN', title: 'x' }] }),
+      ).rejects.toThrow('KO translation is required');
+    });
+
+    it('adminCreate inserts and returns generated id', async () => {
+      repo.create.mockResolvedValue(undefined);
+      const out = await service.adminCreate({
+        seq: 2,
+        status: 'ACTIVE',
+        translations: [{ locale: 'KO', title: '동해 명소', description: '설명' }],
+      });
+      expect(out).toEqual({ collectionId: 'id-1' });
+      const [input, trans] = repo.create.mock.calls[0];
+      expect(input).toEqual({ id: 'id-1', seq: 2, status: 'ACTIVE' });
+      expect(trans).toEqual([{ locale: 'KO', title: '동해 명소', description: '설명' }]);
+    });
+
+    it('adminUpdate 404 when missing', async () => {
+      repo.updateMeta.mockResolvedValue(null);
+      await expect(service.adminUpdate('c1', { seq: 3 })).rejects.toThrow('Collection not found');
+    });
+
+    it('adminDelete 404 when missing', async () => {
+      repo.deleteById.mockResolvedValue(false);
+      await expect(service.adminDelete('c1')).rejects.toThrow('Collection not found');
+    });
+
+    it('adminAddPlace 404 when collection missing', async () => {
+      repo.collectionExists.mockResolvedValue(false);
+      await expect(service.adminAddPlace('c1', 'p1', 1)).rejects.toThrow('Collection not found');
+    });
+
+    it('adminAddPlace 404 when place not ACTIVE', async () => {
+      repo.collectionExists.mockResolvedValue(true);
+      repo.placeActive.mockResolvedValue(false);
+      await expect(service.adminAddPlace('c1', 'p1', 1)).rejects.toThrow('Place not found');
+    });
+
+    it('adminAddPlace upserts membership', async () => {
+      repo.collectionExists.mockResolvedValue(true);
+      repo.placeActive.mockResolvedValue(true);
+      repo.addPlace.mockResolvedValue(undefined);
+      await service.adminAddPlace('c1', 'p1', 5);
+      expect(repo.addPlace).toHaveBeenCalledWith('c1', 'p1', 5);
+    });
+
+    it('adminRemovePlace 404 when membership missing', async () => {
+      repo.removePlace.mockResolvedValue(false);
+      await expect(service.adminRemovePlace('c1', 'p1')).rejects.toThrow('Membership not found');
     });
   });
 });
