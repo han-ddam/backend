@@ -11,7 +11,10 @@ describe('StatsService', () => {
       userBasic: jest.fn(),
     };
     dogam = { overview: jest.fn() };
-    badges = { representativeFor: jest.fn().mockResolvedValue(new Map()) };
+    badges = {
+      representativeFor: jest.fn().mockResolvedValue(new Map()),
+      evaluate: jest.fn(),
+    };
     service = new StatsService(repo, dogam, badges);
   });
 
@@ -28,6 +31,7 @@ describe('StatsService', () => {
         dogamPercent: 63, visitedCount: 102,
         nationalRank: 127, totalUsers: 15284,
       });
+      expect(badges.evaluate).toHaveBeenCalledWith('u1');
     });
 
     it('rank null when user has no score', async () => {

@@ -4,13 +4,15 @@ import { VisitsService } from './visits.service';
 describe('VisitsService', () => {
   let repo: any;
   let id: any;
+  let badges: any;
   let service: VisitsService;
 
   beforeEach(() => {
     repo = { placeActive: jest.fn(), record: jest.fn() };
     let seq = 0;
     id = { generate: jest.fn(() => `id-${++seq}`) };
-    service = new VisitsService(repo, id);
+    badges = { evaluate: jest.fn() };
+    service = new VisitsService(repo, id, badges);
   });
 
   it('records a new visit and returns VISITED with visitedAt', async () => {
@@ -20,6 +22,7 @@ describe('VisitsService', () => {
     const out = await service.record('u1', 'p1');
     expect(repo.record).toHaveBeenCalledWith('id-1', 'u1', 'p1');
     expect(out).toEqual({ placeId: 'p1', visitStatus: 'VISITED', visitedAt: when.toISOString() });
+    expect(badges.evaluate).toHaveBeenCalledWith('u1');
   });
 
   it('is idempotent — returns existing row on duplicate', async () => {

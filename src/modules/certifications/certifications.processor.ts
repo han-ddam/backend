@@ -2,6 +2,7 @@ import { Inject } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
 import { ScoringService } from '@modules/scoring/scoring.service';
+import { BadgesService } from '@modules/badges/badges.service';
 import { CertificationsRepository } from './certifications.repository';
 import { VERIFIER, type VerifierPort } from './verify/verifier.port';
 
@@ -12,6 +13,7 @@ export class CertificationsProcessor extends WorkerHost {
     private readonly repo: CertificationsRepository,
     @Inject(VERIFIER) private readonly verifier: VerifierPort,
     private readonly scoring: ScoringService,
+    private readonly badges: BadgesService,
   ) {
     super();
   }
@@ -31,11 +33,14 @@ export class CertificationsProcessor extends WorkerHost {
     }
 
     const preview = await this.scoring.preview(cert.placeId);
-    await this.repo.applyAccrual({
+    const accrual = await this.repo.applyAccrual({
       certId: cert.id,
       userId: cert.userId,
       placeId: cert.placeId,
       preview,
     });
+    if (accrual.awarded) {
+      await this.badges.evaluate(cert.userId);
+    }
   }
 }

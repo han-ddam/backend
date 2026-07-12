@@ -62,6 +62,7 @@ export class StatsService {
   ) {}
 
   async profile(userId: string): Promise<ProfileResult> {
+    await this.badges.evaluate(userId); // 안전망: 놓친 부여 보정
     const basic = await this.repo.userBasic(userId);
     if (!basic) throw new NotFoundException('User not found');
     const me = await this.repo.myStats(userId, 'CUMULATIVE');
