@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DogamService } from '@modules/dogam/dogam.service';
+import { BadgesService, type RepresentativeBadge } from '@modules/badges/badges.service';
+import type { Locale } from '@platform/context/request-context';
 import { levelFromExp } from './level';
 import { StatsRepository, type Period } from './stats.repository';
 
@@ -30,7 +32,7 @@ export interface LeaderboardItem {
 }
 export interface RankingsResult {
   topPercent: number | null;
-  top3: { rank: number; handle: string; score: number; badge: null }[];
+  top3: { rank: number; handle: string; score: number; badge: RepresentativeBadge | null }[];
   leaderboard: { items: LeaderboardItem[]; nextCursor: string | null };
   me: { rank: number | null; score: number; dogamPercent: number; pointsToNext: number };
 }
@@ -53,12 +55,20 @@ function decodeRankCursor(c?: string): { score: string; userId: string } | null 
 
 @Injectable()
 export class StatsService {
+  private readonly logger = new Logger(StatsService.name);
+
   constructor(
     private readonly repo: StatsRepository,
     private readonly dogam: DogamService,
+    private readonly badges: BadgesService,
   ) {}
 
   async profile(userId: string): Promise<ProfileResult> {
+    try {
+      await this.badges.evaluate(userId); // 안전망: 놓친 부여 보정
+    } catch (e) {
+      this.logger.warn(`badge evaluate failed for ${userId}: ${e}`);
+    }
     const basic = await this.repo.userBasic(userId);
     if (!basic) throw new NotFoundException('User not found');
     const me = await this.repo.myStats(userId, 'CUMULATIVE');
@@ -84,15 +94,20 @@ export class StatsService {
     period: Period,
     cursor?: string,
     limit?: number,
+    locale: Locale = 'KO',
   ): Promise<RankingsResult> {
     const lim = Math.min(Math.max(limit ?? 20, 1), 100);
 
     const top3rows = await this.repo.rankPage(period, 3, null);
+    const repMap = await this.badges.representativeFor(
+      top3rows.map((r) => r.userId),
+      locale,
+    );
     const top3 = top3rows.map((r) => ({
       rank: r.rank,
       handle: r.handle,
       score: Number(r.score),
-      badge: null as null,
+      badge: repMap.get(r.userId) ?? null,
     }));
 
     const pageRows = await this.repo.rankPage(period, lim + 1, decodeRankCursor(cursor));

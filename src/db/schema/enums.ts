@@ -18,3 +18,6 @@ export const userRoleEnum = pgEnum('user_role', [
 ]);
 
 export const collectionStatusEnum = pgEnum('collection_status', ['ACTIVE', 'HIDDEN']);
+
+export const badgeCriteriaTypeEnum = pgEnum('badge_criteria_type', ['LEVEL', 'VISIT_COUNT']);
+export const badgeStatusEnum = pgEnum('badge_status', ['ACTIVE', 'HIDDEN']);

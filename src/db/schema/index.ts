@@ -15,3 +15,4 @@ export * from './compositions';
 export * from './collections';
 export * from './ratings';
 export * from './bookmarks';
+export * from './badges';

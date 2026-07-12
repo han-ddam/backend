@@ -3,6 +3,8 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger'
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@modules/auth/decorators/current-user.decorator';
 import type { AuthUser } from '@modules/auth/auth.types';
+import { ReqContext } from '@platform/context/req-context.decorator';
+import type { RequestContext } from '@platform/context/request-context';
 import { StatsService } from './stats.service';
 import { RankingsQueryDto } from './dto/stats.dto';
 
@@ -27,7 +29,11 @@ export class StatsController {
   @ApiQuery({ name: 'period', required: false, enum: ['CUMULATIVE', 'MONTHLY'] })
   @ApiQuery({ name: 'cursor', required: false, type: String })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  rankings(@CurrentUser() user: AuthUser, @Query() q: RankingsQueryDto) {
-    return this.stats.rankings(user.userId, q.scope, q.period, q.cursor, q.limit);
+  rankings(
+    @CurrentUser() user: AuthUser,
+    @Query() q: RankingsQueryDto,
+    @ReqContext() ctx: RequestContext,
+  ) {
+    return this.stats.rankings(user.userId, q.scope, q.period, q.cursor, q.limit, ctx.locale);
   }
 }
