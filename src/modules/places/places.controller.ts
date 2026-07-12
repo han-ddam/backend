@@ -19,7 +19,8 @@ import { OptionalUser } from '@modules/auth/decorators/optional-user.decorator';
 import type { AuthUser } from '@modules/auth/auth.types';
 import { PlacesService } from './places.service';
 import { CompositionsService } from './compositions.service';
-import { PlaceListQueryDto, NearbyQueryDto } from './dto/place.dto';
+import { CertificationsService } from '@modules/certifications/certifications.service';
+import { PlaceListQueryDto, NearbyQueryDto, PlaceCertFeedQueryDto } from './dto/place.dto';
 
 const SAFE_COMPOSITION_KEY = /^compositions\/[A-Za-z0-9_-]+\.(jpg|png|webp)$/;
 
@@ -29,6 +30,7 @@ export class PlacesController {
   constructor(
     private readonly places: PlacesService,
     private readonly compositionsService: CompositionsService,
+    private readonly certs: CertificationsService,
     @Inject(STORAGE) private readonly storage: StoragePort,
   ) {}
 
@@ -85,6 +87,15 @@ export class PlacesController {
   @Get(':id/compositions')
   compositions(@Param('id', ParseUUIDPipe) id: string, @ReqContext() ctx: RequestContext) {
     return this.compositionsService.forPlace(id, ctx.locale);
+  }
+
+  /** 다른 여행자들의 공개 인증사진 피드 (PUBLIC·ACCEPTED, 최신순). */
+  @ApiOperation({ summary: '여행지 인증사진 피드' })
+  @Get(':id/certifications')
+  @ApiQuery({ name: 'cursor', required: false, type: String })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 8 })
+  certFeed(@Param('id', ParseUUIDPipe) id: string, @Query() q: PlaceCertFeedQueryDto) {
+    return this.certs.publicFeedForPlace(id, q.cursor, q.limit ?? 8);
   }
 
   /** 여행지 상세 (점수/가중치는 scoring 도메인에서 별도 조회). */

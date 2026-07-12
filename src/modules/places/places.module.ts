@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AdminModule } from '@modules/admin/admin.module';
 import { AuthModule } from '@modules/auth/auth.module';
+import { CertificationsModule } from '@modules/certifications/certifications.module';
 import { PlacesRepository } from './places.repository';
 import { PlacesService } from './places.service';
 import { CompositionsRepository } from './compositions.repository';
@@ -10,7 +11,7 @@ import { AdminPlacesController } from './admin-places.controller';
 import { MePlacesController } from './me-places.controller';
 
 @Module({
-  imports: [AdminModule, AuthModule], // admin 가드(AdminJwtGuard/AdminRolesGuard) + JwtAuthGuard 사용
+  imports: [AdminModule, AuthModule, CertificationsModule], // admin 가드(AdminJwtGuard/AdminRolesGuard) + JwtAuthGuard 사용
   controllers: [PlacesController, AdminPlacesController, MePlacesController],
   providers: [PlacesRepository, PlacesService, CompositionsRepository, CompositionsService],
   exports: [PlacesService, CompositionsService],

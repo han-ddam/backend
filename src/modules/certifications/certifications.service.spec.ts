@@ -12,6 +12,7 @@ describe('CertificationsService', () => {
       createPending: jest.fn(),
       createRejected: jest.fn(),
       getResult: jest.fn(),
+      publicFeedForPlace: jest.fn(),
     };
     geo = { isWithin: jest.fn(), distanceMeters: jest.fn() };
     storage = { save: jest.fn(), exists: jest.fn() };
@@ -110,5 +111,27 @@ describe('CertificationsService', () => {
   it('getCertification throws NotFound when not owned/missing', async () => {
     repo.getResult.mockResolvedValue(null);
     await expect(service.getCertification('u1', 'nope')).rejects.toThrow(NotFoundException);
+  });
+
+  describe('publicFeedForPlace', () => {
+    it('maps rows to imageUrl + handle and builds nextCursor', async () => {
+      const rows = [
+        { id: 'c2', createdAt: new Date('2026-07-07T00:00:00Z'), imageKey: 'certifications/b.jpg', handle: '@b' },
+        { id: 'c1', createdAt: new Date('2026-07-06T00:00:00Z'), imageKey: 'certifications/a.jpg', handle: '@a' },
+      ];
+      repo.publicFeedForPlace.mockResolvedValue(rows);
+      const out = await service.publicFeedForPlace('p1', undefined, 1);
+      expect(repo.publicFeedForPlace).toHaveBeenCalledWith('p1', undefined, 1);
+      expect(out.items).toEqual([
+        { imageUrl: '/api/certifications/photos/certifications/b.jpg', userHandle: '@b', createdAt: rows[0].createdAt },
+      ]);
+      expect(out.nextCursor).not.toBeNull();
+    });
+
+    it('returns empty page with null cursor when no certs', async () => {
+      repo.publicFeedForPlace.mockResolvedValue([]);
+      const out = await service.publicFeedForPlace('p1', undefined, 8);
+      expect(out).toEqual({ items: [], nextCursor: null });
+    });
   });
 });

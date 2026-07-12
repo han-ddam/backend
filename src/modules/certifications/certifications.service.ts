@@ -8,6 +8,7 @@ import { GeoService } from '@modules/geo/geo.service';
 import { CertificationsRepository } from './certifications.repository';
 import { STORAGE, type StoragePort } from '@platform/storage/storage.port';
 import { SubmitCertificationDto } from './dto/certification.dto';
+import { buildCursorPage } from '@platform/pagination/cursor';
 
 export interface SubmitResult {
   certId: string;
@@ -97,5 +98,24 @@ export class CertificationsService {
     if (cert.visibility === 'PUBLIC') return { ok: true };
     if (userId && cert.userId === userId) return { ok: true };
     return null;
+  }
+
+  /** place 공개 인증사진 피드 — 다른 여행자들의 PUBLIC·ACCEPTED 사진, 커서 페이지. */
+  async publicFeedForPlace(
+    placeId: string,
+    cursor: string | undefined,
+    limit: number,
+  ): Promise<{ items: { imageUrl: string; userHandle: string; createdAt: Date }[]; nextCursor: string | null }> {
+    const lim = Math.min(Math.max(limit, 1), 50);
+    const rows = await this.repo.publicFeedForPlace(placeId, cursor, lim);
+    const page = buildCursorPage(rows, lim);
+    return {
+      items: page.items.map((r) => ({
+        imageUrl: `/api/certifications/photos/${r.imageKey}`,
+        userHandle: r.handle,
+        createdAt: r.createdAt,
+      })),
+      nextCursor: page.nextCursor,
+    };
   }
 }
