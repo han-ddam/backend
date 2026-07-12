@@ -3,9 +3,11 @@ import { AuthModule } from '@modules/auth/auth.module';
 import { DogamModule } from '@modules/dogam/dogam.module';
 import { StatsRepository } from './stats.repository';
 import { StatsService } from './stats.service';
+import { StatsController } from './stats.controller';
 
 @Module({
   imports: [AuthModule, DogamModule], // JwtAuthGuard, DogamService(overview)
+  controllers: [StatsController],
   providers: [StatsRepository, StatsService],
   exports: [StatsService],
 })

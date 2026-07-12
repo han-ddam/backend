@@ -20,6 +20,7 @@ import { ScoringModule } from '@modules/scoring/scoring.module';
 import { AgreementsModule } from '@modules/agreements/agreements.module';
 import { CertificationsModule } from '@modules/certifications/certifications.module';
 import { DogamModule } from '@modules/dogam/dogam.module';
+import { StatsModule } from '@modules/stats/stats.module';
 
 /**
  * Root composition. PlatformModule (global) provides infra to every domain
@@ -52,6 +53,7 @@ import { DogamModule } from '@modules/dogam/dogam.module';
     AgreementsModule,
     CertificationsModule,
     DogamModule,
+    StatsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
