@@ -14,6 +14,8 @@ describe('CollectionsService', () => {
       themesPage: jest.fn(),
       themeProgress: jest.fn(),
       themeThumbnails: jest.fn(),
+      regionThumbnails: jest.fn(),
+      anyActiveTheme: jest.fn(),
     };
     dogam = { regions: jest.fn() };
     let n = 0;
@@ -98,6 +100,59 @@ describe('CollectionsService', () => {
       repo.themesPage.mockResolvedValue([]);
       const out = await service.listThemesWithProgress('u1', 'KO', undefined, 20);
       expect(out).toEqual({ items: [], nextCursor: null });
+    });
+  });
+
+  describe('listMyCollections', () => {
+    const regionCards = [
+      { sidoCode: '11', name: '서울', percent: 50, collected: 5, total: 10, locked: false },
+      { sidoCode: '32', name: '강원', percent: 40, collected: 4, total: 10, locked: false },
+    ];
+
+    it('regions first then themes, with kind; page spans boundary', async () => {
+      dogam.regions.mockResolvedValue(regionCards);
+      repo.regionThumbnails.mockResolvedValue(new Map([['11', ['http://tong/s.jpg']], ['32', []]]));
+      // limit 3: 2 regions + 1 theme
+      repo.themesPage.mockResolvedValue([{ id: 'c1', seq: 1 }]); // remaining=1, +1 → returns ≤2; here 1 (no next)
+      repo.collectionTrans.mockResolvedValue([{ collectionId: 'c1', locale: 'KO', title: '동해', description: null }]);
+      repo.themeProgress.mockResolvedValue(new Map([['c1', { filled: 2, total: 6 }]]));
+      repo.themeThumbnails.mockResolvedValue(new Map([['c1', []]]));
+
+      const out = await service.listMyCollections('u1', 'KO', undefined, 3);
+
+      expect(out.items).toEqual([
+        { kind: 'REGION', id: '11', title: '서울', filled: 5, total: 10, thumbnails: ['http://tong/s.jpg'] },
+        { kind: 'REGION', id: '32', title: '강원', filled: 4, total: 10, thumbnails: [] },
+        { kind: 'THEME', id: 'c1', title: '동해', filled: 2, total: 6, thumbnails: [] },
+      ]);
+      expect(out.nextCursor).toBeNull();
+    });
+
+    it('page full on regions → nextCursor is region marker (more exist)', async () => {
+      dogam.regions.mockResolvedValue(regionCards);
+      repo.regionThumbnails.mockResolvedValue(new Map([['11', []]]));
+      repo.anyActiveTheme.mockResolvedValue(true);
+
+      const out = await service.listMyCollections('u1', 'KO', undefined, 1);
+
+      expect(out.items).toEqual([
+        { kind: 'REGION', id: '11', title: '서울', filled: 5, total: 10, thumbnails: [] },
+      ]);
+      expect(out.nextCursor).not.toBeNull(); // more regions remain
+      expect(repo.themesPage).not.toHaveBeenCalled();
+    });
+
+    it('THEME cursor skips regions entirely', async () => {
+      repo.themesPage.mockResolvedValue([{ id: 'c2', seq: 5 }]);
+      repo.collectionTrans.mockResolvedValue([{ collectionId: 'c2', locale: 'KO', title: '등대', description: null }]);
+      repo.themeProgress.mockResolvedValue(new Map([['c2', { filled: 1, total: 3 }]]));
+      repo.themeThumbnails.mockResolvedValue(new Map([['c2', []]]));
+      const { encodeMergedTheme } = await import('./collections.cursor');
+
+      const out = await service.listMyCollections('u1', 'KO', encodeMergedTheme(4, 'c1'), 20);
+
+      expect(dogam.regions).not.toHaveBeenCalled();
+      expect(out.items).toEqual([{ kind: 'THEME', id: 'c2', title: '등대', filled: 1, total: 3, thumbnails: [] }]);
     });
   });
 });

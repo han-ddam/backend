@@ -179,4 +179,36 @@ export class CollectionsRepository {
     }
     return map;
   }
+
+  /** province 코드별(region_code 접두) 소속 place image_url 앞 4개. */
+  async regionThumbnails(codes: string[]): Promise<Map<string, string[]>> {
+    const map = new Map<string, string[]>();
+    if (codes.length === 0) return map;
+    for (const c of codes) map.set(c, []);
+    const rows = await this.db.execute<{ prov: string; image_url: string }>(sql`
+      SELECT prov, image_url FROM (
+        SELECT split_part(region_code, '_', 1) AS prov, image_url,
+               row_number() OVER (PARTITION BY split_part(region_code, '_', 1) ORDER BY id ASC) AS rn
+        FROM ${places}
+        WHERE status = 'ACTIVE' AND image_url IS NOT NULL
+          AND split_part(region_code, '_', 1) = ANY(${codes})
+      ) t WHERE rn <= 4
+      ORDER BY prov, rn
+    `);
+    for (const r of rows) {
+      const arr = map.get(r.prov);
+      if (arr) arr.push(r.image_url);
+    }
+    return map;
+  }
+
+  /** ACTIVE 테마가 하나라도 있는지. */
+  async anyActiveTheme(): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: collections.id })
+      .from(collections)
+      .where(eq(collections.status, 'ACTIVE'))
+      .limit(1);
+    return !!row;
+  }
 }

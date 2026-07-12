@@ -6,7 +6,7 @@ import type { AuthUser } from '@modules/auth/auth.types';
 import { ReqContext } from '@platform/context/req-context.decorator';
 import type { RequestContext } from '@platform/context/request-context';
 import { CollectionsService } from './collections.service';
-import { ThemesQueryDto } from './dto/collection.dto';
+import { ThemesQueryDto, MyCollectionsQueryDto } from './dto/collection.dto';
 
 @ApiTags('collections')
 @ApiBearerAuth()
@@ -26,5 +26,18 @@ export class MeCollectionsController {
     @ReqContext() ctx: RequestContext,
   ) {
     return this.collections.listThemesWithProgress(user.userId, ctx.locale, q.cursor, q.limit);
+  }
+
+  /** 마이페이지 도감 진행률 탭 — 지역+테마 합본. */
+  @ApiOperation({ summary: '도감 진행률(지역+테마 합본)' })
+  @Get('me/collections')
+  @ApiQuery({ name: 'cursor', required: false, type: String })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  myCollections(
+    @CurrentUser() user: AuthUser,
+    @Query() q: MyCollectionsQueryDto,
+    @ReqContext() ctx: RequestContext,
+  ) {
+    return this.collections.listMyCollections(user.userId, ctx.locale, q.cursor, q.limit);
   }
 }

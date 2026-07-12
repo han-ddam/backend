@@ -3,7 +3,13 @@ import type { localeEnum } from '@db/schema';
 import { IdService } from '@platform/id/id.service';
 import { DogamService } from '@modules/dogam/dogam.service';
 import { CollectionsRepository } from './collections.repository';
-import { decodeSeqCursor, buildSeqPage } from './collections.cursor';
+import {
+  decodeSeqCursor,
+  buildSeqPage,
+  decodeMergedCursor,
+  encodeMergedRegion,
+  encodeMergedTheme,
+} from './collections.cursor';
 
 type Locale = (typeof localeEnum.enumValues)[number];
 
@@ -17,6 +23,15 @@ export interface CollectionDetailItem {
 
 export interface ThemeCard {
   collectionId: string;
+  title: string;
+  filled: number;
+  total: number;
+  thumbnails: string[];
+}
+
+export interface MyCollectionItem {
+  kind: 'REGION' | 'THEME';
+  id: string;
   title: string;
   filled: number;
   total: number;
@@ -117,6 +132,71 @@ export class CollectionsService {
         thumbnails: thumbs.get(r.id) ?? [],
       };
     });
+  }
+
+  async listMyCollections(
+    userId: string,
+    locale: Locale,
+    cursor?: string,
+    limit?: number,
+  ): Promise<{ items: MyCollectionItem[]; nextCursor: string | null }> {
+    const lim = Math.min(Math.max(limit ?? 20, 1), 100);
+    const c = decodeMergedCursor(cursor);
+    const items: MyCollectionItem[] = [];
+
+    // --- REGION phase (cursor 없음 또는 REGION일 때만) ---
+    if (!c || c.kind === 'REGION') {
+      const regionCards = await this.dogam.regions(userId, locale); // 17, code 정렬
+      const afterCode = c && c.kind === 'REGION' ? c.code : null;
+      const startIdx = afterCode
+        ? regionCards.findIndex((r) => Number(r.sidoCode) > Number(afterCode))
+        : 0;
+      const slice = startIdx === -1 ? [] : regionCards.slice(startIdx, startIdx + lim);
+      if (slice.length > 0) {
+        const thumbs = await this.repo.regionThumbnails(slice.map((r) => r.sidoCode));
+        for (const r of slice) {
+          items.push({
+            kind: 'REGION',
+            id: r.sidoCode,
+            title: r.name,
+            filled: r.collected,
+            total: r.total,
+            thumbnails: thumbs.get(r.sidoCode) ?? [],
+          });
+        }
+      }
+      const consumedThroughIdx = startIdx === -1 ? regionCards.length : startIdx + slice.length;
+      const regionsExhausted = consumedThroughIdx >= regionCards.length;
+
+      if (items.length >= lim) {
+        // 페이지가 지역으로 꽉 참 → 마지막 지역 마커. 뒤에 더 있으면(지역 남음 or 테마 존재) 커서 반환.
+        const last = slice[slice.length - 1];
+        const more = !regionsExhausted || (await this.repo.anyActiveTheme());
+        return { items, nextCursor: more ? encodeMergedRegion(last.sidoCode) : null };
+      }
+      // 지역이 페이지를 못 채움 → 테마 앞부분으로 이어감(themeCursor 없음)
+    }
+
+    // --- THEME phase ---
+    const remaining = lim - items.length;
+    const themeCursor = c && c.kind === 'THEME' ? { seq: c.seq, id: c.id } : null;
+    const rows = await this.repo.themesPage(themeCursor, remaining);
+    const hasNext = rows.length > remaining;
+    const pageRows = hasNext ? rows.slice(0, remaining) : rows;
+    const cards = await this.buildThemeCards(userId, locale, pageRows);
+    for (const card of cards) {
+      items.push({
+        kind: 'THEME',
+        id: card.collectionId,
+        title: card.title,
+        filled: card.filled,
+        total: card.total,
+        thumbnails: card.thumbnails,
+      });
+    }
+    const last = pageRows[pageRows.length - 1];
+    const nextCursor = hasNext && last ? encodeMergedTheme(last.seq, last.id) : null;
+    return { items, nextCursor };
   }
 
   private pickTrans(
