@@ -16,6 +16,9 @@ export const envSchema = z.object({
   JWT_ACCESS_TTL: z.coerce.number().int().positive().default(900),
   JWT_REFRESH_TTL: z.coerce.number().int().positive().default(1209600),
 
+  // 구글 ID token aud 허용목록 (콤마구분). 미설정이면 구글 로그인 거부(fail-closed). 카카오/네이버 무관.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+
   // CORS allowlist: '*' (reflect any origin) or comma-separated origins.
   CORS_ORIGINS: z.string().default('*'),
 
