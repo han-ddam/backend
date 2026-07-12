@@ -18,7 +18,7 @@ describe('PlacesService', () => {
       nearestRegionCode: jest.fn(),
       nearbyPlaces: jest.fn(),
       setStatus: jest.fn(),
-      hasVisit: jest.fn(),
+      userPlaceFlags: jest.fn(),
     };
     let seq = 0;
     id = { generate: jest.fn(() => `id-${++seq}`) };
@@ -84,7 +84,7 @@ describe('PlacesService', () => {
         rarityWeight: '1.50', imageUrl: 'http://tong/x.jpg', lat: 1, lng: 2,
       });
       repo.transFor.mockResolvedValue([{ locale: 'KO', name: '영금정', address: '속초', description: null, mission: null }]);
-      repo.hasVisit.mockResolvedValue(true);
+      repo.userPlaceFlags.mockResolvedValue({ visited: true, bookmarked: false });
 
       const out = await service.getPlace('p1', 'KO', 'u1');
 
@@ -93,7 +93,19 @@ describe('PlacesService', () => {
       expect(out.ratingCount).toBe(0);
       expect(out.myRating).toBeNull();
       expect(out.visitStatus).toBe('VISITED');
-      expect(repo.hasVisit).toHaveBeenCalledWith('u1', 'p1');
+      expect(repo.userPlaceFlags).toHaveBeenCalledWith('u1', 'p1');
+    });
+
+    it('PLANNED when bookmarked but not visited', async () => {
+      repo.findById.mockResolvedValue({
+        id: 'p1', regionCode: '1_1', status: 'ACTIVE', tags: [],
+        rarityWeight: '1.00', imageUrl: null, lat: null, lng: null,
+      });
+      repo.transFor.mockResolvedValue([{ locale: 'KO', name: '영금정', address: null, description: null, mission: null }]);
+      repo.userPlaceFlags.mockResolvedValue({ visited: false, bookmarked: true });
+
+      const out = await service.getPlace('p1', 'KO', 'u1');
+      expect(out.visitStatus).toBe('PLANNED');
     });
 
     it('guest gets NONE and never queries visits; null imageUrl passes through', async () => {
@@ -108,7 +120,7 @@ describe('PlacesService', () => {
       expect(out.imageUrl).toBeNull();
       expect(out.visitStatus).toBe('NONE');
       expect(out.myRating).toBeNull();
-      expect(repo.hasVisit).not.toHaveBeenCalled();
+      expect(repo.userPlaceFlags).not.toHaveBeenCalled();
     });
 
     it('merges rating aggregate (average, count, myRating)', async () => {
@@ -117,7 +129,7 @@ describe('PlacesService', () => {
         rarityWeight: '1.00', imageUrl: null, lat: null, lng: null,
       });
       repo.transFor.mockResolvedValue([{ locale: 'KO', name: '영금정', address: null, description: null, mission: null }]);
-      repo.hasVisit.mockResolvedValue(false);
+      repo.userPlaceFlags.mockResolvedValue({ visited: false, bookmarked: false });
       ratings.aggregateFor.mockResolvedValue({ average: 4.8, count: 123, myScore: 4.5 });
 
       const out = await service.getPlace('p1', 'KO', 'u1');

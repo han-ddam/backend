@@ -6,6 +6,7 @@ import {
   places,
   placeTrans,
   visits,
+  userPlaceBookmarks,
   type Place,
   type PlaceTrans,
   type localeEnum,
@@ -45,14 +46,18 @@ export class PlacesRepository {
     return row;
   }
 
-  /** 해당 유저가 이 place를 방문(visit)했는지. */
-  async hasVisit(userId: string, placeId: string): Promise<boolean> {
-    const [row] = await this.db
-      .select({ id: visits.id })
-      .from(visits)
-      .where(and(eq(visits.userId, userId), eq(visits.placeId, placeId)))
-      .limit(1);
-    return !!row;
+  /** 해당 유저의 방문·찜 여부(1쿼리). visitStatus 3-state 산출용. */
+  async userPlaceFlags(
+    userId: string,
+    placeId: string,
+  ): Promise<{ visited: boolean; bookmarked: boolean }> {
+    const rows = await this.db.execute<{ visited: boolean; bookmarked: boolean }>(sql`
+      SELECT
+        EXISTS(SELECT 1 FROM ${visits} v WHERE v.user_id = ${userId} AND v.place_id = ${placeId}) AS visited,
+        EXISTS(SELECT 1 FROM ${userPlaceBookmarks} b WHERE b.user_id = ${userId} AND b.place_id = ${placeId}) AS bookmarked
+    `);
+    const row = rows[0];
+    return { visited: !!row?.visited, bookmarked: !!row?.bookmarked };
   }
 
   /** Translations for a place in the given locales (caller picks/fallbacks). */

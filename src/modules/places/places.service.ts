@@ -28,7 +28,7 @@ export interface PlaceView {
   rating: number | null;
   ratingCount: number;
   myRating: number | null;
-  visitStatus: 'VISITED' | 'NONE';
+  visitStatus: 'VISITED' | 'PLANNED' | 'NONE';
   lat: number | null;
   lng: number | null;
 }
@@ -83,10 +83,13 @@ export class PlacesService {
     }
     const trans = await this.repo.transFor(id, [locale, 'KO']);
     const t = this.pickTrans(trans, locale);
-    const [visited, agg] = await Promise.all([
-      userId ? this.repo.hasVisit(userId, id) : Promise.resolve(false),
+    const [flags, agg] = await Promise.all([
+      userId
+        ? this.repo.userPlaceFlags(userId, id)
+        : Promise.resolve({ visited: false, bookmarked: false }),
       this.ratings.aggregateFor(id, userId),
     ]);
+    const visitStatus = flags.visited ? 'VISITED' : flags.bookmarked ? 'PLANNED' : 'NONE';
     return {
       id: place.id,
       regionCode: place.regionCode,
@@ -100,7 +103,7 @@ export class PlacesService {
       rating: agg.average,
       ratingCount: agg.count,
       myRating: agg.myScore,
-      visitStatus: visited ? 'VISITED' : 'NONE',
+      visitStatus,
       lat: place.lat,
       lng: place.lng,
     };
