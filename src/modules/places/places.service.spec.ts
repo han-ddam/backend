@@ -228,8 +228,8 @@ describe('PlacesService', () => {
   describe('nearby', () => {
     it('maps rows to items sorted by distance, rounds distanceM, thumbnailUrl null', async () => {
       repo.nearbyPlaces.mockResolvedValue([
-        { id: 'p1', regionCode: '32_1', distanceM: 100.4 },
-        { id: 'p2', regionCode: '32_1', distanceM: 1200.6 },
+        { id: 'p1', regionCode: '32_1', distanceM: 100.4, imageUrl: 'http://tong/p1.jpg' },
+        { id: 'p2', regionCode: '32_1', distanceM: 1200.6, imageUrl: null },
       ]);
       repo.transForMany.mockResolvedValue([
         { placeId: 'p1', locale: 'KO', name: '영금정', address: '속초시 A' },
@@ -238,13 +238,13 @@ describe('PlacesService', () => {
       const out = await service.nearby({ lat: 38.2, lng: 128.6, locale: 'KO' });
       expect(repo.nearbyPlaces).toHaveBeenCalledWith(38.2, 128.6, 2000, 20); // 기본값
       expect(out).toEqual([
-        { placeId: 'p1', name: '영금정', address: '속초시 A', distanceM: 100, regionCode: '32_1', thumbnailUrl: null },
+        { placeId: 'p1', name: '영금정', address: '속초시 A', distanceM: 100, regionCode: '32_1', thumbnailUrl: 'http://tong/p1.jpg' },
         { placeId: 'p2', name: '설악산', address: null, distanceM: 1201, regionCode: '32_1', thumbnailUrl: null },
       ]);
     });
 
     it('passes explicit radius/limit and falls back name to empty string', async () => {
-      repo.nearbyPlaces.mockResolvedValue([{ id: 'p3', regionCode: '39_4', distanceM: 5.2 }]);
+      repo.nearbyPlaces.mockResolvedValue([{ id: 'p3', regionCode: '39_4', distanceM: 5.2, imageUrl: null }]);
       repo.transForMany.mockResolvedValue([]); // 이름 없음 → ''
       const out = await service.nearby({ lat: 33.4, lng: 126.5, radius: 500, limit: 5, locale: 'EN' });
       expect(repo.nearbyPlaces).toHaveBeenCalledWith(33.4, 126.5, 500, 5);
