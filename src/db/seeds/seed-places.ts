@@ -70,6 +70,7 @@ interface PlaceItem {
   lng: number | null;
   areaCode: string | null;
   regionCode: string | null;
+  image: string | null;
 }
 
 function num(v: unknown): number | null {
@@ -121,6 +122,10 @@ async function fetchPage(
         lng: num(i.mapx),
         areaCode: areacode,
         regionCode: areacode && sigungu ? `${areacode}_${sigungu}` : null,
+        image:
+          (i.firstimage2 && String(i.firstimage2).trim()) ||
+          (i.firstimage && String(i.firstimage).trim()) ||
+          null,
       };
     });
   return { items, totalCount };
@@ -166,6 +171,7 @@ async function main() {
           tourapiContentId: p.contentId,
           lat: p.lat,
           lng: p.lng,
+          imageUrl: p.image,
         })
         .onConflictDoUpdate({
           target: schema.places.tourapiContentId,
@@ -173,6 +179,7 @@ async function main() {
             lat: p.lat,
             lng: p.lng,
             regionCode: p.regionCode!,
+            imageUrl: p.image,
             updatedAt: sql`now()`,
           },
         })

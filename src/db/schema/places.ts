@@ -33,6 +33,7 @@ export const places = pgTable('place', {
     .notNull()
     .default('1.00'),
   tags: text('tags').array().notNull().default([]),
+  imageUrl: text('image_url'), // TourAPI firstimage URL (nullable, 핫링크)
   status: placeStatusEnum('status').notNull().default('ACTIVE'),
   // 사용자 제출 장소의 등록자 (NULL = 어드민 큐레이션/시드)
   createdBy: uuid('created_by').references(() => users.id, {
