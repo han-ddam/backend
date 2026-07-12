@@ -4,6 +4,7 @@ import { PlacesService } from './places.service';
 describe('PlacesService', () => {
   let repo: any;
   let id: any;
+  let ratings: any;
   let service: PlacesService;
 
   beforeEach(() => {
@@ -21,7 +22,8 @@ describe('PlacesService', () => {
     };
     let seq = 0;
     id = { generate: jest.fn(() => `id-${++seq}`) };
-    service = new PlacesService(repo, id);
+    ratings = { aggregateFor: jest.fn().mockResolvedValue({ average: null, count: 0, myScore: null }) };
+    service = new PlacesService(repo, id, ratings);
   });
 
   describe('createPlace', () => {
@@ -89,6 +91,7 @@ describe('PlacesService', () => {
       expect(out.imageUrl).toBe('http://tong/x.jpg');
       expect(out.rating).toBeNull();
       expect(out.ratingCount).toBe(0);
+      expect(out.myRating).toBeNull();
       expect(out.visitStatus).toBe('VISITED');
       expect(repo.hasVisit).toHaveBeenCalledWith('u1', 'p1');
     });
@@ -104,7 +107,25 @@ describe('PlacesService', () => {
 
       expect(out.imageUrl).toBeNull();
       expect(out.visitStatus).toBe('NONE');
+      expect(out.myRating).toBeNull();
       expect(repo.hasVisit).not.toHaveBeenCalled();
+    });
+
+    it('merges rating aggregate (average, count, myRating)', async () => {
+      repo.findById.mockResolvedValue({
+        id: 'p1', regionCode: '1_1', status: 'ACTIVE', tags: [],
+        rarityWeight: '1.00', imageUrl: null, lat: null, lng: null,
+      });
+      repo.transFor.mockResolvedValue([{ locale: 'KO', name: '영금정', address: null, description: null, mission: null }]);
+      repo.hasVisit.mockResolvedValue(false);
+      ratings.aggregateFor.mockResolvedValue({ average: 4.8, count: 123, myScore: 4.5 });
+
+      const out = await service.getPlace('p1', 'KO', 'u1');
+
+      expect(ratings.aggregateFor).toHaveBeenCalledWith('p1', 'u1');
+      expect(out.rating).toBe(4.8);
+      expect(out.ratingCount).toBe(123);
+      expect(out.myRating).toBe(4.5);
     });
   });
 
