@@ -8,6 +8,7 @@ import {
   places,
   placeTrans,
   visits,
+  regions,
   localeEnum,
 } from '@db/schema';
 
@@ -180,18 +181,19 @@ export class CollectionsRepository {
     return map;
   }
 
-  /** province 코드별(region_code 접두) 소속 place image_url 앞 4개. */
+  /** province(parent_code)별 소속 place image_url 앞 4개. dogam과 동일한 parent_code 기준. */
   async regionThumbnails(codes: string[]): Promise<Map<string, string[]>> {
     const map = new Map<string, string[]>();
     if (codes.length === 0) return map;
     for (const c of codes) map.set(c, []);
     const rows = await this.db.execute<{ prov: string; image_url: string }>(sql`
       SELECT prov, image_url FROM (
-        SELECT split_part(region_code, '_', 1) AS prov, image_url,
-               row_number() OVER (PARTITION BY split_part(region_code, '_', 1) ORDER BY id ASC) AS rn
-        FROM ${places}
-        WHERE status = 'ACTIVE' AND image_url IS NOT NULL
-          AND split_part(region_code, '_', 1) = ANY(${codes})
+        SELECT r.parent_code AS prov, p.image_url,
+               row_number() OVER (PARTITION BY r.parent_code ORDER BY p.id ASC) AS rn
+        FROM ${places} p
+        JOIN ${regions} r ON r.code = p.region_code
+        WHERE p.status = 'ACTIVE' AND p.image_url IS NOT NULL
+          AND r.parent_code = ANY(${codes})
       ) t WHERE rn <= 4
       ORDER BY prov, rn
     `);
