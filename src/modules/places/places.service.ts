@@ -6,6 +6,7 @@ import {
 import { IdService } from '@platform/id/id.service';
 import { buildCursorPage, type CursorPage } from '@platform/pagination/cursor';
 import type { Place, PlaceTrans, localeEnum, placeStatusEnum } from '@db/schema';
+import { RatingsService } from '@modules/ratings/ratings.service';
 import {
   PlacesRepository,
   type PlaceTransInput,
@@ -26,6 +27,7 @@ export interface PlaceView {
   imageUrl: string | null;
   rating: number | null;
   ratingCount: number;
+  myRating: number | null;
   visitStatus: 'VISITED' | 'NONE';
   lat: number | null;
   lng: number | null;
@@ -71,6 +73,7 @@ export class PlacesService {
   constructor(
     private readonly repo: PlacesRepository,
     private readonly id: IdService,
+    private readonly ratings: RatingsService,
   ) {}
 
   async getPlace(id: string, locale: Locale, userId?: string | null): Promise<PlaceView> {
@@ -80,7 +83,10 @@ export class PlacesService {
     }
     const trans = await this.repo.transFor(id, [locale, 'KO']);
     const t = this.pickTrans(trans, locale);
-    const visited = userId ? await this.repo.hasVisit(userId, id) : false;
+    const [visited, agg] = await Promise.all([
+      userId ? this.repo.hasVisit(userId, id) : Promise.resolve(false),
+      this.ratings.aggregateFor(id, userId),
+    ]);
     return {
       id: place.id,
       regionCode: place.regionCode,
@@ -91,8 +97,9 @@ export class PlacesService {
       tags: place.tags,
       rarityWeight: Number(place.rarityWeight),
       imageUrl: place.imageUrl ?? null,
-      rating: null,
-      ratingCount: 0,
+      rating: agg.average,
+      ratingCount: agg.count,
+      myRating: agg.myScore,
       visitStatus: visited ? 'VISITED' : 'NONE',
       lat: place.lat,
       lng: place.lng,

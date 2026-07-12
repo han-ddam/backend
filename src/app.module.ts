@@ -23,6 +23,7 @@ import { DogamModule } from '@modules/dogam/dogam.module';
 import { StatsModule } from '@modules/stats/stats.module';
 import { HomeModule } from '@modules/home/home.module';
 import { CollectionsModule } from '@modules/collections/collections.module';
+import { RatingsModule } from '@modules/ratings/ratings.module';
 
 /**
  * Root composition. PlatformModule (global) provides infra to every domain
@@ -58,6 +59,7 @@ import { CollectionsModule } from '@modules/collections/collections.module';
     StatsModule,
     HomeModule,
     CollectionsModule,
+    RatingsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
