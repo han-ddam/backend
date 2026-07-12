@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
-import { badges, badgeTrans, userBadges, scoreEvents, visits, type localeEnum } from '@db/schema';
+import { badges, badgeTrans, userBadges, scoreEvents, visits, localeEnum } from '@db/schema';
 
 type Locale = (typeof localeEnum.enumValues)[number];
 
@@ -84,5 +84,56 @@ export class BadgesRepository {
       .select({ badgeId: badgeTrans.badgeId, locale: badgeTrans.locale, name: badgeTrans.name })
       .from(badgeTrans)
       .where(and(inArray(badgeTrans.badgeId, badgeIds), inArray(badgeTrans.locale, locales)));
+  }
+
+  async create(
+    input: { id: string; code: string; tier: number; criteriaType: 'LEVEL' | 'VISIT_COUNT'; criteriaValue: number; iconKey: string | null; status: 'ACTIVE' | 'HIDDEN'; seq: number },
+    trans: { locale: string; name: string; description: string | null }[],
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx.insert(badges).values({
+        id: input.id, code: input.code, tier: input.tier,
+        criteriaType: input.criteriaType, criteriaValue: input.criteriaValue,
+        iconKey: input.iconKey, status: input.status, seq: input.seq,
+      });
+      await tx.insert(badgeTrans).values(
+        trans.map((t) => ({ badgeId: input.id, locale: t.locale as Locale, name: t.name, description: t.description })),
+      );
+    });
+  }
+
+  async updateMeta(
+    id: string,
+    patch: { tier?: number; criteriaValue?: number; iconKey?: string | null; status?: 'ACTIVE' | 'HIDDEN'; seq?: number },
+  ): Promise<{ id: string } | null> {
+    const [row] = await this.db
+      .update(badges)
+      .set({
+        ...(patch.tier !== undefined ? { tier: patch.tier } : {}),
+        ...(patch.criteriaValue !== undefined ? { criteriaValue: patch.criteriaValue } : {}),
+        ...(patch.iconKey !== undefined ? { iconKey: patch.iconKey } : {}),
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        ...(patch.seq !== undefined ? { seq: patch.seq } : {}),
+        updatedAt: sql`now()`,
+      })
+      .where(eq(badges.id, id))
+      .returning({ id: badges.id });
+    return row ?? null;
+  }
+
+  async deleteById(id: string): Promise<boolean> {
+    const rows = await this.db.delete(badges).where(eq(badges.id, id)).returning({ id: badges.id });
+    return rows.length > 0;
+  }
+
+  async adminListPage(params: { limit: number; offset: number }): Promise<{ rows: { id: string; code: string; tier: number; criteriaType: string; criteriaValue: number; status: string; seq: number }[]; total: number }> {
+    const rows = await this.db
+      .select({ id: badges.id, code: badges.code, tier: badges.tier, criteriaType: badges.criteriaType, criteriaValue: badges.criteriaValue, status: badges.status, seq: badges.seq })
+      .from(badges)
+      .orderBy(desc(badges.seq))
+      .limit(params.limit)
+      .offset(params.offset);
+    const [{ value }] = await this.db.select({ value: sql<number>`count(*)::int` }).from(badges);
+    return { rows, total: Number(value) };
   }
 }

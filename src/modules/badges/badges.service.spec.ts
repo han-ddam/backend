@@ -1,7 +1,7 @@
 import { BadgesService } from './badges.service';
 
 describe('BadgesService', () => {
-  let repo: any, service: BadgesService;
+  let repo: any, id: any, service: BadgesService;
   beforeEach(() => {
     repo = {
       userFacts: jest.fn(),
@@ -10,8 +10,13 @@ describe('BadgesService', () => {
       earnedBadges: jest.fn(),
       badgeTransFor: jest.fn(),
       representativeRows: jest.fn(),
+      create: jest.fn(),
+      updateMeta: jest.fn(),
+      deleteById: jest.fn(),
+      adminListPage: jest.fn(),
     };
-    service = new BadgesService(repo);
+    id = { generate: jest.fn(() => 'id-1') };
+    service = new BadgesService(repo, id);
   });
 
   describe('evaluate', () => {
@@ -78,6 +83,27 @@ describe('BadgesService', () => {
       const map = await service.representativeFor([], 'KO');
       expect(map.size).toBe(0);
       expect(repo.representativeRows).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('admin', () => {
+    it('adminCreate requires KO translation', async () => {
+      await expect(
+        service.adminCreate({ code: 'X', tier: 1, criteriaType: 'LEVEL', criteriaValue: 3, seq: 1, translations: [{ locale: 'EN', name: 'x' }] }),
+      ).rejects.toThrow('KO translation is required');
+    });
+    it('adminCreate inserts and returns id', async () => {
+      repo.create.mockResolvedValue(undefined);
+      const out = await service.adminCreate({ code: 'LEVEL_3', tier: 10, criteriaType: 'LEVEL', criteriaValue: 3, seq: 1, translations: [{ locale: 'KO', name: '초보' }] });
+      expect(out).toEqual({ badgeId: 'id-1' });
+    });
+    it('adminUpdate 404 when missing', async () => {
+      repo.updateMeta.mockResolvedValue(null);
+      await expect(service.adminUpdate('b1', { tier: 5 })).rejects.toThrow('Badge not found');
+    });
+    it('adminDelete 404 when missing', async () => {
+      repo.deleteById.mockResolvedValue(false);
+      await expect(service.adminDelete('b1')).rejects.toThrow('Badge not found');
     });
   });
 });

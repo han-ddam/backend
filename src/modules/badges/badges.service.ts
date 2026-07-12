@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { localeEnum } from '@db/schema';
+import { IdService } from '@platform/id/id.service';
 import { levelFromExp } from '@modules/stats/level';
 import { BadgesRepository } from './badges.repository';
 
@@ -21,7 +22,10 @@ export interface RepresentativeBadge {
 
 @Injectable()
 export class BadgesService {
-  constructor(private readonly repo: BadgesRepository) {}
+  constructor(
+    private readonly repo: BadgesRepository,
+    private readonly id: IdService,
+  ) {}
 
   /** 조건 충족 뱃지 부여(멱등). 이벤트 시점·안전망에서 호출. */
   async evaluate(userId: string): Promise<void> {
@@ -87,5 +91,34 @@ export class BadgesService {
 
   private pickName(rows: { locale: string; name: string }[], locale: Locale): string | undefined {
     return (rows.find((r) => r.locale === locale) ?? rows.find((r) => r.locale === 'KO'))?.name;
+  }
+
+  async adminCreate(cmd: {
+    code: string; tier: number; criteriaType: 'LEVEL' | 'VISIT_COUNT'; criteriaValue: number;
+    iconKey?: string; status?: 'ACTIVE' | 'HIDDEN'; seq: number;
+    translations: { locale: string; name: string; description?: string }[];
+  }): Promise<{ badgeId: string }> {
+    if (!cmd.translations.some((t) => t.locale === 'KO')) throw new BadRequestException('KO translation is required');
+    const badgeId = this.id.generate();
+    await this.repo.create(
+      { id: badgeId, code: cmd.code, tier: cmd.tier, criteriaType: cmd.criteriaType, criteriaValue: cmd.criteriaValue, iconKey: cmd.iconKey ?? null, status: cmd.status ?? 'ACTIVE', seq: cmd.seq },
+      cmd.translations.map((t) => ({ locale: t.locale, name: t.name, description: t.description ?? null })),
+    );
+    return { badgeId };
+  }
+
+  async adminList(params: { page: number; limit: number }) {
+    const { rows, total } = await this.repo.adminListPage({ limit: params.limit, offset: (params.page - 1) * params.limit });
+    return { items: rows, total, page: params.page, limit: params.limit };
+  }
+
+  async adminUpdate(id: string, patch: { tier?: number; criteriaValue?: number; iconKey?: string | null; status?: 'ACTIVE' | 'HIDDEN'; seq?: number }): Promise<{ id: string }> {
+    const row = await this.repo.updateMeta(id, patch);
+    if (!row) throw new NotFoundException('Badge not found');
+    return row;
+  }
+
+  async adminDelete(id: string): Promise<void> {
+    if (!(await this.repo.deleteById(id))) throw new NotFoundException('Badge not found');
   }
 }
