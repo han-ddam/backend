@@ -11,6 +11,9 @@ describe('CollectionsService', () => {
       placeTransForMany: jest.fn(),
       detailPlacesPage: jest.fn(),
       collectionCounts: jest.fn(),
+      themesPage: jest.fn(),
+      themeProgress: jest.fn(),
+      themeThumbnails: jest.fn(),
     };
     dogam = { regions: jest.fn() };
     let n = 0;
@@ -61,6 +64,40 @@ describe('CollectionsService', () => {
 
       const out = await service.getCollectionDetail('c1', 'KO', null, undefined, 20);
       expect(out.items[0].visitStatus).toBe('NONE');
+    });
+  });
+
+  describe('listThemesWithProgress', () => {
+    it('maps theme cards with progress + thumbnails; nextCursor from seq', async () => {
+      repo.themesPage.mockResolvedValue([
+        { id: 'c1', seq: 1 },
+        { id: 'c2', seq: 2 },
+      ]);
+      repo.collectionTrans.mockResolvedValue([
+        { collectionId: 'c1', locale: 'KO', title: '동해 명소', description: null },
+        { collectionId: 'c2', locale: 'KO', title: '등대 순례', description: null },
+      ]);
+      repo.themeProgress.mockResolvedValue(
+        new Map([
+          ['c1', { filled: 3, total: 8 }],
+          ['c2', { filled: 0, total: 5 }],
+        ]),
+      );
+      repo.themeThumbnails.mockResolvedValue(new Map([['c1', ['http://tong/a.jpg']], ['c2', []]]));
+
+      const out = await service.listThemesWithProgress('u1', 'KO', undefined, 1);
+
+      expect(repo.themesPage).toHaveBeenCalledWith(null, 1);
+      expect(out.items).toEqual([
+        { collectionId: 'c1', title: '동해 명소', filled: 3, total: 8, thumbnails: ['http://tong/a.jpg'] },
+      ]);
+      expect(out.nextCursor).not.toBeNull();
+    });
+
+    it('empty themes → empty page', async () => {
+      repo.themesPage.mockResolvedValue([]);
+      const out = await service.listThemesWithProgress('u1', 'KO', undefined, 20);
+      expect(out).toEqual({ items: [], nextCursor: null });
     });
   });
 });

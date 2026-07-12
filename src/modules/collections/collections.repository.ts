@@ -112,4 +112,71 @@ export class CollectionsRepository {
     }
     return { all: Number(all), visited };
   }
+
+  /** ACTIVE 테마 keyset(seq ASC, id ASC). limit+1 조회. */
+  async themesPage(
+    cursor: { seq: number; id: string } | null,
+    limit: number,
+  ): Promise<{ id: string; seq: number }[]> {
+    const conds: SQL[] = [eq(collections.status, 'ACTIVE')];
+    if (cursor) {
+      conds.push(
+        or(
+          gt(collections.seq, cursor.seq),
+          and(eq(collections.seq, cursor.seq), gt(collections.id, cursor.id)),
+        )!,
+      );
+    }
+    return this.db
+      .select({ id: collections.id, seq: collections.seq })
+      .from(collections)
+      .where(and(...conds))
+      .orderBy(asc(collections.seq), asc(collections.id))
+      .limit(limit + 1);
+  }
+
+  /** 테마별 {filled(방문 수), total(소속 수)}. */
+  async themeProgress(
+    userId: string,
+    ids: string[],
+  ): Promise<Map<string, { filled: number; total: number }>> {
+    const map = new Map<string, { filled: number; total: number }>();
+    if (ids.length === 0) return map;
+    const totals = await this.db
+      .select({ cid: collectionPlace.collectionId, total: sql<number>`count(*)::int` })
+      .from(collectionPlace)
+      .where(inArray(collectionPlace.collectionId, ids))
+      .groupBy(collectionPlace.collectionId);
+    const filled = await this.db
+      .select({ cid: collectionPlace.collectionId, filled: sql<number>`count(*)::int` })
+      .from(collectionPlace)
+      .innerJoin(visits, and(eq(visits.placeId, collectionPlace.placeId), eq(visits.userId, userId)))
+      .where(inArray(collectionPlace.collectionId, ids))
+      .groupBy(collectionPlace.collectionId);
+    for (const id of ids) map.set(id, { filled: 0, total: 0 });
+    for (const r of totals) map.set(r.cid, { filled: 0, total: Number(r.total) });
+    for (const r of filled) {
+      const cur = map.get(r.cid) ?? { filled: 0, total: 0 };
+      map.set(r.cid, { filled: Number(r.filled), total: cur.total });
+    }
+    return map;
+  }
+
+  /** 테마별 소속 place image_url 앞 4개(seq ASC, place_id ASC, null 제외). */
+  async themeThumbnails(ids: string[]): Promise<Map<string, string[]>> {
+    const map = new Map<string, string[]>();
+    if (ids.length === 0) return map;
+    for (const id of ids) map.set(id, []);
+    const rows = await this.db
+      .select({ cid: collectionPlace.collectionId, imageUrl: places.imageUrl, seq: collectionPlace.seq, pid: collectionPlace.placeId })
+      .from(collectionPlace)
+      .innerJoin(places, eq(places.id, collectionPlace.placeId))
+      .where(and(inArray(collectionPlace.collectionId, ids), sql`${places.imageUrl} is not null`))
+      .orderBy(asc(collectionPlace.seq), asc(collectionPlace.placeId));
+    for (const r of rows) {
+      const arr = map.get(r.cid)!;
+      if (arr.length < 4 && r.imageUrl) arr.push(r.imageUrl);
+    }
+    return map;
+  }
 }

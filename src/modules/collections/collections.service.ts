@@ -15,6 +15,14 @@ export interface CollectionDetailItem {
   visitStatus: 'VISITED' | 'NONE';
 }
 
+export interface ThemeCard {
+  collectionId: string;
+  title: string;
+  filled: number;
+  total: number;
+  thumbnails: string[];
+}
+
 @Injectable()
 export class CollectionsService {
   constructor(
@@ -70,6 +78,45 @@ export class CollectionsService {
       items,
       nextCursor: page.nextCursor,
     };
+  }
+
+  async listThemesWithProgress(
+    userId: string,
+    locale: Locale,
+    cursor?: string,
+    limit?: number,
+  ): Promise<{ items: ThemeCard[]; nextCursor: string | null }> {
+    const lim = Math.min(Math.max(limit ?? 20, 1), 100);
+    const rows = await this.repo.themesPage(decodeSeqCursor(cursor), lim);
+    const page = buildSeqPage(rows, lim, (r) => ({ seq: r.seq, id: r.id }));
+    const cards = await this.buildThemeCards(userId, locale, page.items);
+    return { items: cards, nextCursor: page.nextCursor };
+  }
+
+  /** {id,seq} 테마 rows → 진행률·썸네일·title 결합한 카드. themes/collections 공용. */
+  private async buildThemeCards(
+    userId: string,
+    locale: Locale,
+    rows: { id: string; seq: number }[],
+  ): Promise<ThemeCard[]> {
+    if (rows.length === 0) return [];
+    const ids = rows.map((r) => r.id);
+    const [trans, progress, thumbs] = await Promise.all([
+      this.repo.collectionTrans(ids, [locale, 'KO']),
+      this.repo.themeProgress(userId, ids),
+      this.repo.themeThumbnails(ids),
+    ]);
+    return rows.map((r) => {
+      const t = this.pickTrans(trans.filter((x) => x.collectionId === r.id), locale);
+      const p = progress.get(r.id) ?? { filled: 0, total: 0 };
+      return {
+        collectionId: r.id,
+        title: t?.title ?? '',
+        filled: p.filled,
+        total: p.total,
+        thumbnails: thumbs.get(r.id) ?? [],
+      };
+    });
   }
 
   private pickTrans(
