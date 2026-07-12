@@ -16,3 +16,5 @@ export const userRoleEnum = pgEnum('user_role', [
   'MODERATOR',
   'ADMIN',
 ]);
+
+export const collectionStatusEnum = pgEnum('collection_status', ['ACTIVE', 'HIDDEN']);
