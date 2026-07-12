@@ -43,6 +43,20 @@ describe('StatsService', () => {
       expect(out.exp).toBe(0);
       expect(out.nationalRank).toBeNull();
     });
+
+    it('resolves even when the safety-net badges.evaluate throws (isolated failure)', async () => {
+      badges.evaluate.mockRejectedValue(new Error('x'));
+      repo.userBasic.mockResolvedValue({ handle: '@a', displayName: '에이' });
+      repo.myStats.mockResolvedValue({ rank: 127, score: 2450, totalRankers: 15284, pointsToNext: 18 });
+      dogam.overview.mockResolvedValue({ percent: 63, collected: 102, total: 370 });
+      const out = await service.profile('u1');
+      expect(out).toEqual({
+        handle: '@a', displayName: '에이', avatarUrl: null,
+        level: 7, exp: 350, expForNextLevel: 700,
+        dogamPercent: 63, visitedCount: 102,
+        nationalRank: 127, totalUsers: 15284,
+      });
+    });
   });
 
   describe('rankings', () => {

@@ -72,7 +72,7 @@ export class BadgesRepository {
       .from(userBadges)
       .innerJoin(badges, eq(badges.id, userBadges.badgeId))
       .where(inArray(userBadges.userId, userIds))
-      .orderBy(desc(badges.tier));
+      .orderBy(desc(badges.tier), asc(badges.seq), asc(badges.id));
   }
 
   async badgeTransFor(

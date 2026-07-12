@@ -38,4 +38,13 @@ describe('VisitsService', () => {
     await expect(service.record('u1', 'nope')).rejects.toThrow(NotFoundException);
     expect(repo.record).not.toHaveBeenCalled();
   });
+
+  it('resolves with the visit result even when the safety-net badges.evaluate throws', async () => {
+    const when = new Date('2026-07-07T00:00:00.000Z');
+    repo.placeActive.mockResolvedValue(true);
+    repo.record.mockResolvedValue({ createdAt: when });
+    badges.evaluate.mockRejectedValue(new Error('x'));
+    const out = await service.record('u1', 'p1');
+    expect(out).toEqual({ placeId: 'p1', visitStatus: 'VISITED', visitedAt: when.toISOString() });
+  });
 });

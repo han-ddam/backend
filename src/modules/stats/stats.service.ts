@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DogamService } from '@modules/dogam/dogam.service';
 import { BadgesService, type RepresentativeBadge } from '@modules/badges/badges.service';
 import type { Locale } from '@platform/context/request-context';
@@ -55,6 +55,8 @@ function decodeRankCursor(c?: string): { score: string; userId: string } | null 
 
 @Injectable()
 export class StatsService {
+  private readonly logger = new Logger(StatsService.name);
+
   constructor(
     private readonly repo: StatsRepository,
     private readonly dogam: DogamService,
@@ -62,7 +64,11 @@ export class StatsService {
   ) {}
 
   async profile(userId: string): Promise<ProfileResult> {
-    await this.badges.evaluate(userId); // 안전망: 놓친 부여 보정
+    try {
+      await this.badges.evaluate(userId); // 안전망: 놓친 부여 보정
+    } catch (e) {
+      this.logger.warn(`badge evaluate failed for ${userId}: ${e}`);
+    }
     const basic = await this.repo.userBasic(userId);
     if (!basic) throw new NotFoundException('User not found');
     const me = await this.repo.myStats(userId, 'CUMULATIVE');
