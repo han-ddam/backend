@@ -9,6 +9,7 @@ describe('BadgesService', () => {
       grantMany: jest.fn(),
       earnedBadges: jest.fn(),
       badgeTransFor: jest.fn(),
+      representativeRows: jest.fn(),
     };
     service = new BadgesService(repo);
   });
@@ -53,6 +54,30 @@ describe('BadgesService', () => {
       repo.earnedBadges.mockResolvedValue([]);
       const out = await service.listMine('u1', 'KO');
       expect(out).toEqual({ items: [] });
+    });
+  });
+
+  describe('representativeFor', () => {
+    it('picks highest-tier badge per user, null for users with none', async () => {
+      repo.representativeRows.mockResolvedValue([
+        { userId: 'u1', badgeId: 'b2', code: 'LEVEL_10', tier: 30, iconKey: 'trophy' },
+        { userId: 'u1', badgeId: 'b1', code: 'LEVEL_5', tier: 10, iconKey: null },
+        { userId: 'u2', badgeId: 'b1', code: 'LEVEL_5', tier: 10, iconKey: null },
+      ]);
+      repo.badgeTransFor.mockResolvedValue([
+        { badgeId: 'b2', locale: 'KO', name: '여행마스터' },
+        { badgeId: 'b1', locale: 'KO', name: '초보여행자' },
+      ]);
+      const map = await service.representativeFor(['u1', 'u2', 'u3'], 'KO');
+      expect(map.get('u1')).toEqual({ code: 'LEVEL_10', name: '여행마스터', iconKey: 'trophy' });
+      expect(map.get('u2')).toEqual({ code: 'LEVEL_5', name: '초보여행자', iconKey: null });
+      expect(map.get('u3') ?? null).toBeNull();
+    });
+
+    it('empty userIds → empty map', async () => {
+      const map = await service.representativeFor([], 'KO');
+      expect(map.size).toBe(0);
+      expect(repo.representativeRows).not.toHaveBeenCalled();
     });
   });
 });

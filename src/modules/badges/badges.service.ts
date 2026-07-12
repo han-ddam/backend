@@ -13,6 +13,12 @@ export interface BadgeItem {
   earnedAt: string;
 }
 
+export interface RepresentativeBadge {
+  code: string;
+  name: string;
+  iconKey: string | null;
+}
+
 @Injectable()
 export class BadgesService {
   constructor(private readonly repo: BadgesRepository) {}
@@ -54,6 +60,29 @@ export class BadgesService {
       };
     });
     return { items };
+  }
+
+  /** 유저별 대표 뱃지(tier 최고). 미획득 유저는 맵에 없음(null 취급). */
+  async representativeFor(
+    userIds: string[],
+    locale: Locale,
+  ): Promise<Map<string, RepresentativeBadge | null>> {
+    const map = new Map<string, RepresentativeBadge | null>();
+    if (userIds.length === 0) return map;
+    const rows = await this.repo.representativeRows(userIds); // tier DESC
+    const topByUser = new Map<string, { badgeId: string; code: string; iconKey: string | null }>();
+    for (const r of rows) {
+      if (!topByUser.has(r.userId)) {
+        topByUser.set(r.userId, { badgeId: r.badgeId, code: r.code, iconKey: r.iconKey });
+      }
+    }
+    const badgeIds = [...new Set([...topByUser.values()].map((b) => b.badgeId))];
+    const trans = await this.repo.badgeTransFor(badgeIds, [locale, 'KO']);
+    for (const [userId, b] of topByUser) {
+      const name = this.pickName(trans.filter((x) => x.badgeId === b.badgeId), locale) ?? '';
+      map.set(userId, { code: b.code, name, iconKey: b.iconKey ?? null });
+    }
+    return map;
   }
 
   private pickName(rows: { locale: string; name: string }[], locale: Locale): string | undefined {

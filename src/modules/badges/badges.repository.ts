@@ -56,6 +56,25 @@ export class BadgesRepository {
       .orderBy(desc(badges.tier), desc(userBadges.earnedAt));
   }
 
+  /** 여러 유저의 획득 뱃지 rows (userId, tier DESC). 대표 뱃지 선택용. */
+  async representativeRows(
+    userIds: string[],
+  ): Promise<{ userId: string; badgeId: string; code: string; tier: number; iconKey: string | null }[]> {
+    if (userIds.length === 0) return [];
+    return this.db
+      .select({
+        userId: userBadges.userId,
+        badgeId: badges.id,
+        code: badges.code,
+        tier: badges.tier,
+        iconKey: badges.iconKey,
+      })
+      .from(userBadges)
+      .innerJoin(badges, eq(badges.id, userBadges.badgeId))
+      .where(inArray(userBadges.userId, userIds))
+      .orderBy(desc(badges.tier));
+  }
+
   async badgeTransFor(
     badgeIds: string[],
     locales: Locale[],
