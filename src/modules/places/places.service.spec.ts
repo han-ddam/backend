@@ -22,7 +22,7 @@ describe('PlacesService', () => {
     };
     let seq = 0;
     id = { generate: jest.fn(() => `id-${++seq}`) };
-    ratings = { aggregateFor: jest.fn().mockResolvedValue({ average: null, count: 0, myScore: null }) };
+    ratings = { aggregateFor: jest.fn().mockResolvedValue({ average: null, count: 0, myScore: null, reviewCount: 0 }) };
     service = new PlacesService(repo, id, ratings);
   });
 
@@ -92,6 +92,7 @@ describe('PlacesService', () => {
       expect(out.rating).toBeNull();
       expect(out.ratingCount).toBe(0);
       expect(out.myRating).toBeNull();
+      expect(out.reviewCount).toBe(0);
       expect(out.visitStatus).toBe('VISITED');
       expect(repo.userPlaceFlags).toHaveBeenCalledWith('u1', 'p1');
     });
@@ -130,7 +131,7 @@ describe('PlacesService', () => {
       });
       repo.transFor.mockResolvedValue([{ locale: 'KO', name: '영금정', address: null, description: null, mission: null }]);
       repo.userPlaceFlags.mockResolvedValue({ visited: false, bookmarked: false });
-      ratings.aggregateFor.mockResolvedValue({ average: 4.8, count: 123, myScore: 4.5 });
+      ratings.aggregateFor.mockResolvedValue({ average: 4.8, count: 123, myScore: 4.5, reviewCount: 12 });
 
       const out = await service.getPlace('p1', 'KO', 'u1');
 
@@ -138,6 +139,7 @@ describe('PlacesService', () => {
       expect(out.rating).toBe(4.8);
       expect(out.ratingCount).toBe(123);
       expect(out.myRating).toBe(4.5);
+      expect(out.reviewCount).toBe(12);
     });
   });
 

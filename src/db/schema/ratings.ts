@@ -1,4 +1,4 @@
-import { pgTable, uuid, numeric, timestamp, index, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, numeric, text, timestamp, index, primaryKey } from 'drizzle-orm/pg-core';
 import { users } from './users';
 import { places } from './places';
 
@@ -13,6 +13,7 @@ export const placeRatings = pgTable(
       .notNull()
       .references(() => places.id, { onDelete: 'cascade' }),
     score: numeric('score', { precision: 2, scale: 1 }).notNull(), // 0.5~5.0, 0.5 단위
+    comment: text('comment'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
