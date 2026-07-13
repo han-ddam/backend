@@ -1,0 +1,1 @@
+ALTER TABLE "place_rating" ADD COLUMN "comment" text;
