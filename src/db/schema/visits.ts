@@ -22,7 +22,7 @@ export const visits = pgTable(
     placeId: uuid('place_id')
       .notNull()
       .references(() => places.id, { onDelete: 'cascade' }),
-    createdAt: timestamp('created_at', { withTimezone: true })
+    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 })
       .notNull()
       .defaultNow(),
   },

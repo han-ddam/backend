@@ -44,7 +44,7 @@ export const certifications = pgTable(
     proximityDistanceM: numeric('proximity_distance_m'), // 좌표 아님, 거리만
     rejectReason: text('reject_reason'),
     scoredAt: timestamp('scored_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
   },
   (t) => ({
     userImageUq: unique('cert_user_image_uq').on(t.userId, t.imageKey),

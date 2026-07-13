@@ -15,7 +15,7 @@ export const placeRatings = pgTable(
     score: numeric('score', { precision: 2, scale: 1 }).notNull(), // 0.5~5.0, 0.5 단위
     comment: text('comment'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.placeId] }),

@@ -39,7 +39,7 @@ export const places = pgTable('place', {
   createdBy: uuid('created_by').references(() => users.id, {
     onDelete: 'set null',
   }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
