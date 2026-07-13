@@ -28,6 +28,7 @@ export interface PlaceView {
   rating: number | null;
   ratingCount: number;
   myRating: number | null;
+  reviewCount: number;
   visitStatus: 'VISITED' | 'PLANNED' | 'NONE';
   lat: number | null;
   lng: number | null;
@@ -103,6 +104,7 @@ export class PlacesService {
       rating: agg.average,
       ratingCount: agg.count,
       myRating: agg.myScore,
+      reviewCount: agg.reviewCount,
       visitStatus,
       lat: place.lat,
       lng: place.lng,

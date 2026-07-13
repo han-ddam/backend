@@ -20,6 +20,8 @@ import type { AuthUser } from '@modules/auth/auth.types';
 import { PlacesService } from './places.service';
 import { CompositionsService } from './compositions.service';
 import { CertificationsService } from '@modules/certifications/certifications.service';
+import { RatingsService } from '@modules/ratings/ratings.service';
+import { ReviewsQueryDto } from '@modules/ratings/dto/rating.dto';
 import { PlaceListQueryDto, NearbyQueryDto, PlaceCertFeedQueryDto } from './dto/place.dto';
 
 const SAFE_COMPOSITION_KEY = /^compositions\/[A-Za-z0-9_-]+\.(jpg|png|webp)$/;
@@ -31,6 +33,7 @@ export class PlacesController {
     private readonly places: PlacesService,
     private readonly compositionsService: CompositionsService,
     private readonly certs: CertificationsService,
+    private readonly ratings: RatingsService,
     @Inject(STORAGE) private readonly storage: StoragePort,
   ) {}
 
@@ -96,6 +99,15 @@ export class PlacesController {
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 8 })
   certFeed(@Param('id', ParseUUIDPipe) id: string, @Query() q: PlaceCertFeedQueryDto) {
     return this.certs.publicFeedForPlace(id, q.cursor, q.limit ?? 8);
+  }
+
+  /** 여행지 후기 목록 (공개, comment 있는 리뷰). */
+  @ApiOperation({ summary: '여행지 후기 목록' })
+  @Get(':id/reviews')
+  @ApiQuery({ name: 'cursor', required: false, type: String })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  reviews(@Param('id', ParseUUIDPipe) id: string, @Query() q: ReviewsQueryDto) {
+    return this.ratings.reviewsFor(id, q.cursor, q.limit ?? 10);
   }
 
   /** 여행지 상세 (점수/가중치는 scoring 도메인에서 별도 조회). */
