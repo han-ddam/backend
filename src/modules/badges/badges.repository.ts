@@ -11,15 +11,17 @@ export class BadgesRepository {
 
   /** 유저의 누적 점수(EXP 원천)와 방문 place 수. */
   async userFacts(userId: string): Promise<{ score: number; visitCount: number }> {
-    const [s] = await this.db
-      .select({ score: sql<string | null>`coalesce(sum(${scoreEvents.weightedScore}), 0)` })
-      .from(scoreEvents)
-      .where(eq(scoreEvents.userId, userId));
-    const [v] = await this.db
-      .select({ count: sql<number>`count(distinct ${visits.placeId})::int` })
-      .from(visits)
-      .where(eq(visits.userId, userId));
-    return { score: Number(s?.score ?? 0), visitCount: Number(v?.count ?? 0) };
+    const [scoreRows, visitRows] = await Promise.all([
+      this.db
+        .select({ score: sql<string | null>`coalesce(sum(${scoreEvents.weightedScore}), 0)` })
+        .from(scoreEvents)
+        .where(eq(scoreEvents.userId, userId)),
+      this.db
+        .select({ count: sql<number>`count(distinct ${visits.placeId})::int` })
+        .from(visits)
+        .where(eq(visits.userId, userId)),
+    ]);
+    return { score: Number(scoreRows[0]?.score ?? 0), visitCount: Number(visitRows[0]?.count ?? 0) };
   }
 
   async activeBadges(): Promise<{ id: string; criteriaType: 'LEVEL' | 'VISIT_COUNT'; criteriaValue: number }[]> {
@@ -52,7 +54,7 @@ export class BadgesRepository {
       })
       .from(userBadges)
       .innerJoin(badges, eq(badges.id, userBadges.badgeId))
-      .where(eq(userBadges.userId, userId))
+      .where(and(eq(userBadges.userId, userId), eq(badges.status, 'ACTIVE')))
       .orderBy(desc(badges.tier), desc(userBadges.earnedAt));
   }
 
@@ -71,7 +73,7 @@ export class BadgesRepository {
       })
       .from(userBadges)
       .innerJoin(badges, eq(badges.id, userBadges.badgeId))
-      .where(inArray(userBadges.userId, userIds))
+      .where(and(inArray(userBadges.userId, userIds), eq(badges.status, 'ACTIVE')))
       .orderBy(desc(badges.tier), asc(badges.seq), asc(badges.id));
   }
 
@@ -124,6 +126,11 @@ export class BadgesRepository {
   async deleteById(id: string): Promise<boolean> {
     const rows = await this.db.delete(badges).where(eq(badges.id, id)).returning({ id: badges.id });
     return rows.length > 0;
+  }
+
+  async codeExists(code: string): Promise<boolean> {
+    const [row] = await this.db.select({ id: badges.id }).from(badges).where(eq(badges.code, code));
+    return !!row;
   }
 
   async adminListPage(params: { limit: number; offset: number }): Promise<{ rows: { id: string; code: string; tier: number; criteriaType: string; criteriaValue: number; status: string; seq: number }[]; total: number }> {

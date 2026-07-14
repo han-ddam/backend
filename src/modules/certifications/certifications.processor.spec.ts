@@ -39,6 +39,22 @@ describe('CertificationsProcessor', () => {
     expect(badges.evaluate).toHaveBeenCalledWith('u1');
   });
 
+  it('does not fail the job when badge evaluate throws (already-committed accrual)', async () => {
+    repo.findById.mockResolvedValue(pending);
+    verifier.verify.mockResolvedValue({ pass: true });
+    scoring.preview.mockResolvedValue({
+      action: 'CERT_PHOTO',
+      basePoints: 15,
+      regionWeight: 1.5,
+      rarityWeight: 1,
+      eventMultiplier: 1,
+      estimatedPoints: 22.5,
+    });
+    repo.applyAccrual.mockResolvedValue({ awarded: true, weightedScore: 22.5 });
+    badges.evaluate.mockRejectedValue(new Error('transient'));
+    await expect(proc.process(job('c1'))).resolves.toBeUndefined();
+  });
+
   it('accrual not awarded (already collected) → does not evaluate badges', async () => {
     repo.findById.mockResolvedValue(pending);
     verifier.verify.mockResolvedValue({ pass: true });

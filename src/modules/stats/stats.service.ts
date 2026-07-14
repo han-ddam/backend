@@ -99,10 +99,12 @@ export class StatsService {
     const lim = Math.min(Math.max(limit ?? 20, 1), 100);
 
     const top3rows = await this.repo.rankPage(period, 3, null);
-    const repMap = await this.badges.representativeFor(
-      top3rows.map((r) => r.userId),
-      locale,
-    );
+    let repMap: Map<string, RepresentativeBadge | null> = new Map();
+    try {
+      repMap = await this.badges.representativeFor(top3rows.map((r) => r.userId), locale);
+    } catch (e) {
+      this.logger.warn(`rankings representativeFor failed: ${e}`);
+    }
     const top3 = top3rows.map((r) => ({
       rank: r.rank,
       handle: r.handle,

@@ -57,19 +57,19 @@ export class RatingsRepository {
     return rows.length > 0;
   }
 
-  /** place의 리뷰(comment 非null) — updated_at DESC, user_id DESC 키셋. limit+1. */
+  /** place의 리뷰(comment 非null) — created_at DESC, user_id DESC 키셋(불변 키). limit+1. */
   async reviewsForPlace(
     placeId: string,
     cursor: string | undefined,
     limit: number,
-  ): Promise<{ userId: string; score: string; comment: string; updatedAt: Date; handle: string }[]> {
+  ): Promise<{ userId: string; score: string; comment: string; createdAt: Date; updatedAt: Date; handle: string }[]> {
     const c = decodeCursor(cursor);
     const conds = [eq(placeRatings.placeId, placeId), isNotNull(placeRatings.comment)];
     if (c) {
       conds.push(
         or(
-          lt(placeRatings.updatedAt, c.createdAt),
-          and(eq(placeRatings.updatedAt, c.createdAt), lt(placeRatings.userId, c.id)),
+          lt(placeRatings.createdAt, c.createdAt),
+          and(eq(placeRatings.createdAt, c.createdAt), lt(placeRatings.userId, c.id)),
         )!,
       );
     }
@@ -78,13 +78,14 @@ export class RatingsRepository {
         userId: placeRatings.userId,
         score: placeRatings.score,
         comment: sql<string>`${placeRatings.comment}`,
+        createdAt: placeRatings.createdAt,
         updatedAt: placeRatings.updatedAt,
         handle: users.handle,
       })
       .from(placeRatings)
       .innerJoin(users, eq(users.id, placeRatings.userId))
       .where(and(...conds))
-      .orderBy(desc(placeRatings.updatedAt), desc(placeRatings.userId))
+      .orderBy(desc(placeRatings.createdAt), desc(placeRatings.userId))
       .limit(limit + 1);
   }
 }

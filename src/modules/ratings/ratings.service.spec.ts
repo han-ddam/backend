@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { RatingsService } from './ratings.service';
+import { decodeCursor } from '@platform/pagination/cursor';
 
 describe('RatingsService', () => {
   let repo: any, service: RatingsService;
@@ -71,17 +72,24 @@ describe('RatingsService', () => {
   });
 
   describe('reviewsFor', () => {
-    it('maps rows to items + nextCursor (keyset on updatedAt/userId)', async () => {
+    it('display shows updatedAt but cursor keys on immutable createdAt', async () => {
+      // u2 was edited after creation → createdAt ≠ updatedAt. The cursor must encode createdAt,
+      // so a regression back to updated_at-keyed pagination would flip the decoded cursor to 07-20.
       repo.reviewsForPlace.mockResolvedValue([
-        { userId: 'u2', score: '4.5', comment: '좋아요', updatedAt: new Date('2026-07-13T00:00:00Z'), handle: '@b' },
-        { userId: 'u1', score: '3.0', comment: '보통', updatedAt: new Date('2026-07-12T00:00:00Z'), handle: '@a' },
+        { userId: 'u2', score: '4.5', comment: '좋아요', createdAt: new Date('2026-07-13T00:00:00Z'), updatedAt: new Date('2026-07-20T00:00:00Z'), handle: '@b' },
+        { userId: 'u1', score: '3.0', comment: '보통', createdAt: new Date('2026-07-12T00:00:00Z'), updatedAt: new Date('2026-07-12T00:00:00Z'), handle: '@a' },
       ]);
       const out = await service.reviewsFor('p1', undefined, 1);
       expect(repo.reviewsForPlace).toHaveBeenCalledWith('p1', undefined, 1);
+      // display uses updatedAt (last-edited time)
       expect(out.items).toEqual([
-        { userHandle: '@b', score: 4.5, comment: '좋아요', updatedAt: '2026-07-13T00:00:00.000Z' },
+        { userHandle: '@b', score: 4.5, comment: '좋아요', updatedAt: '2026-07-20T00:00:00.000Z' },
       ]);
+      // cursor keys on createdAt (07-13), NOT updatedAt (07-20)
       expect(out.nextCursor).not.toBeNull();
+      const decoded = decodeCursor(out.nextCursor!);
+      expect(decoded!.id).toBe('u2');
+      expect(decoded!.createdAt.getTime()).toBe(new Date('2026-07-13T00:00:00.000Z').getTime());
     });
     it('empty → items [] nextCursor null', async () => {
       repo.reviewsForPlace.mockResolvedValue([]);

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { localeEnum } from '@db/schema';
 import { IdService } from '@platform/id/id.service';
 import { levelFromExp } from '@modules/stats/level';
@@ -99,6 +99,7 @@ export class BadgesService {
     translations: { locale: string; name: string; description?: string }[];
   }): Promise<{ badgeId: string }> {
     if (!cmd.translations.some((t) => t.locale === 'KO')) throw new BadRequestException('KO translation is required');
+    if (await this.repo.codeExists(cmd.code)) throw new ConflictException('Badge code already exists');
     const badgeId = this.id.generate();
     await this.repo.create(
       { id: badgeId, code: cmd.code, tier: cmd.tier, criteriaType: cmd.criteriaType, criteriaValue: cmd.criteriaValue, iconKey: cmd.iconKey ?? null, status: cmd.status ?? 'ACTIVE', seq: cmd.seq },

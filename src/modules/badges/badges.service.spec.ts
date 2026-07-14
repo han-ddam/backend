@@ -14,6 +14,7 @@ describe('BadgesService', () => {
       updateMeta: jest.fn(),
       deleteById: jest.fn(),
       adminListPage: jest.fn(),
+      codeExists: jest.fn(),
     };
     id = { generate: jest.fn(() => 'id-1') };
     service = new BadgesService(repo, id);
@@ -94,8 +95,16 @@ describe('BadgesService', () => {
     });
     it('adminCreate inserts and returns id', async () => {
       repo.create.mockResolvedValue(undefined);
+      repo.codeExists.mockResolvedValue(false);
       const out = await service.adminCreate({ code: 'LEVEL_3', tier: 10, criteriaType: 'LEVEL', criteriaValue: 3, seq: 1, translations: [{ locale: 'KO', name: '초보' }] });
       expect(out).toEqual({ badgeId: 'id-1' });
+    });
+    it('adminCreate 409 when code exists', async () => {
+      repo.codeExists.mockResolvedValue(true);
+      await expect(
+        service.adminCreate({ code: 'DUP', tier: 1, criteriaType: 'LEVEL', criteriaValue: 3, seq: 1, translations: [{ locale: 'KO', name: 'x' }] }),
+      ).rejects.toThrow('Badge code already exists');
+      expect(repo.create).not.toHaveBeenCalled();
     });
     it('adminUpdate 404 when missing', async () => {
       repo.updateMeta.mockResolvedValue(null);
