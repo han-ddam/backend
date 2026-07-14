@@ -71,10 +71,10 @@ describe('RatingsService', () => {
   });
 
   describe('reviewsFor', () => {
-    it('maps rows to items + nextCursor (keyset on updatedAt/userId)', async () => {
+    it('maps rows to items + nextCursor (keyset on createdAt/userId)', async () => {
       repo.reviewsForPlace.mockResolvedValue([
-        { userId: 'u2', score: '4.5', comment: '좋아요', updatedAt: new Date('2026-07-13T00:00:00Z'), handle: '@b' },
-        { userId: 'u1', score: '3.0', comment: '보통', updatedAt: new Date('2026-07-12T00:00:00Z'), handle: '@a' },
+        { userId: 'u2', score: '4.5', comment: '좋아요', createdAt: new Date('2026-07-13T00:00:00Z'), updatedAt: new Date('2026-07-13T00:00:00Z'), handle: '@b' },
+        { userId: 'u1', score: '3.0', comment: '보통', createdAt: new Date('2026-07-12T00:00:00Z'), updatedAt: new Date('2026-07-12T00:00:00Z'), handle: '@a' },
       ]);
       const out = await service.reviewsFor('p1', undefined, 1);
       expect(repo.reviewsForPlace).toHaveBeenCalledWith('p1', undefined, 1);

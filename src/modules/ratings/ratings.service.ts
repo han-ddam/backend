@@ -40,7 +40,7 @@ export class RatingsService {
     return { placeId, comment: null };
   }
 
-  /** place 공개 리뷰 목록 — updated_at 키셋 커서. */
+  /** place 공개 리뷰 목록 — created_at 키셋 커서. */
   async reviewsFor(
     placeId: string,
     cursor: string | undefined,
@@ -48,9 +48,9 @@ export class RatingsService {
   ): Promise<{ items: { userHandle: string; score: number; comment: string; updatedAt: string }[]; nextCursor: string | null }> {
     const lim = Math.min(Math.max(limit, 1), 50);
     const rows = await this.repo.reviewsForPlace(placeId, cursor, lim);
-    // 복합PK라 id 없음 → user_id를 id로, updated_at을 createdAt으로 매핑해 커서 헬퍼 재사용.
+    // 복합PK라 id 없음 → user_id를 id로 매핑. created_at은 불변 키라 커서로 안정적.
     const page = buildCursorPage(
-      rows.map((r) => ({ ...r, createdAt: r.updatedAt, id: r.userId })),
+      rows.map((r) => ({ ...r, id: r.userId })),
       lim,
     );
     return {
