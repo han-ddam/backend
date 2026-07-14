@@ -1,4 +1,4 @@
-import { Inject } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
 import { ScoringService } from '@modules/scoring/scoring.service';
@@ -9,6 +9,8 @@ import { VERIFIER, type VerifierPort } from './verify/verifier.port';
 /** 'certification' 큐 소비 — 검증(VerifierPort) → 통과 시 적립(첫 수집만). 워커에서 활성. */
 @Processor('certification')
 export class CertificationsProcessor extends WorkerHost {
+  private readonly logger = new Logger(CertificationsProcessor.name);
+
   constructor(
     private readonly repo: CertificationsRepository,
     @Inject(VERIFIER) private readonly verifier: VerifierPort,
@@ -40,7 +42,11 @@ export class CertificationsProcessor extends WorkerHost {
       preview,
     });
     if (accrual.awarded) {
-      await this.badges.evaluate(cert.userId);
+      try {
+        await this.badges.evaluate(cert.userId);
+      } catch (e) {
+        this.logger.warn(`badge evaluate failed for ${cert.userId}: ${e}`);
+      }
     }
   }
 }

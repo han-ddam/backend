@@ -151,6 +151,23 @@ describe('StatsService', () => {
       const pagedCall = repo.rankPage.mock.calls[1];
       expect(pagedCall[2]).toBeNull();
     });
+
+    it('isolates badge failure — rankings still returns with null badges', async () => {
+      repo.rankPage.mockImplementation(async (_p: string, limit: number) => {
+        const all = [
+          { rank: 1, userId: 'x', score: '980', handle: '@x' },
+          { rank: 2, userId: 'y', score: '500', handle: '@y' },
+          { rank: 3, userId: 'z', score: '320', handle: '@z' },
+        ];
+        return all.slice(0, limit);
+      });
+      repo.dogamPercentFor.mockResolvedValue(new Map());
+      repo.myStats.mockResolvedValue({ rank: 127, score: 315, totalRankers: 200, pointsToNext: 18 });
+      dogam.overview.mockResolvedValue({ percent: 63, collected: 102, total: 370 });
+      badges.representativeFor.mockRejectedValue(new Error('down'));
+      const out = await service.rankings('u1', 'NATIONAL', 'CUMULATIVE', undefined, 20, 'KO');
+      expect(out.top3.every((t) => t.badge === null)).toBe(true);
+    });
   });
 
   describe('summaryStats', () => {
