@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, inArray, lt, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import { IdService } from '@platform/id/id.service';
 import { ClockService } from '@platform/clock/clock.service';
@@ -42,12 +42,14 @@ export class CertificationsRepository {
         caption: p.caption ?? null, visibility: p.visibility,
         status: 'PENDING', proximityPass: true, proximityDistanceM: p.distanceM.toString(),
       });
-      await tx.insert(certificationImages).values(
-        p.images.map((im) => ({
-          id: this.id.generate(), certId: p.id, imageKey: im.imageKey,
-          seq: im.seq, isRepresentative: im.isRepresentative,
-        })),
-      );
+      if (p.images.length > 0) {
+        await tx.insert(certificationImages).values(
+          p.images.map((im) => ({
+            id: this.id.generate(), certId: p.id, imageKey: im.imageKey,
+            seq: im.seq, isRepresentative: im.isRepresentative,
+          })),
+        );
+      }
     });
   }
 
@@ -59,12 +61,14 @@ export class CertificationsRepository {
         status: 'REJECTED', proximityPass: false, proximityDistanceM: p.distanceM.toString(),
         rejectReason: p.reason,
       });
-      await tx.insert(certificationImages).values(
-        p.images.map((im) => ({
-          id: this.id.generate(), certId: p.id, imageKey: im.imageKey,
-          seq: im.seq, isRepresentative: im.isRepresentative,
-        })),
-      );
+      if (p.images.length > 0) {
+        await tx.insert(certificationImages).values(
+          p.images.map((im) => ({
+            id: this.id.generate(), certId: p.id, imageKey: im.imageKey,
+            seq: im.seq, isRepresentative: im.isRepresentative,
+          })),
+        );
+      }
     });
   }
 
@@ -118,49 +122,51 @@ export class CertificationsRepository {
       .where(eq(certifications.id, id));
   }
 
-  /** 검증 통과분 적립 — 첫 수집이면 score_event+visit 생성, 아니면 스킵. cert ACCEPTED. */
+  /** 검증 통과분 적립 — 첫 수집(×1, visit 행) / 재방문(×0.5). cert당 1건(멱등). */
   async applyAccrual(p: {
     certId: string;
     userId: string;
     placeId: string;
+    type: 'VISIT' | 'PHOTO';
     preview: ScorePreview;
   }): Promise<{ awarded: boolean; weightedScore: number }> {
     return this.db.transaction(async (tx) => {
-      const [existing] = await tx
+      // 동시 적립 직렬화: 같은 (user,place)의 첫수집/재방문 판정 레이스 방지(unique 제거 보완)
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${p.userId}), hashtext(${p.placeId}))`);
+      const [prior] = await tx
         .select({ id: scoreEvents.id })
         .from(scoreEvents)
         .where(and(eq(scoreEvents.userId, p.userId), eq(scoreEvents.placeId, p.placeId)));
-
-      let awarded = false;
-      if (!existing) {
-        const inserted = await tx
-          .insert(scoreEvents)
-          .values({
-            id: this.id.generate(),
-            userId: p.userId,
-            placeId: p.placeId,
-            certificationId: p.certId,
-            basePoints: p.preview.basePoints,
-            regionWeight: p.preview.regionWeight.toFixed(2),
-            rarityWeight: p.preview.rarityWeight.toFixed(2),
-            eventMultiplier: p.preview.eventMultiplier.toFixed(2),
-            weightedScore: p.preview.estimatedPoints.toString(),
-          })
-          .onConflictDoNothing({ target: [scoreEvents.userId, scoreEvents.placeId] })
-          .returning({ id: scoreEvents.id });
-        if (inserted.length > 0) {
-          awarded = true;
-          await tx
-            .insert(visits)
-            .values({ id: this.id.generate(), userId: p.userId, placeId: p.placeId })
-            .onConflictDoNothing({ target: [visits.userId, visits.placeId] });
-        }
+      const revisit = !!prior;
+      const weighted = Math.round(p.preview.estimatedPoints * (revisit ? 0.5 : 1) * 10) / 10;
+      const inserted = await tx
+        .insert(scoreEvents)
+        .values({
+          id: this.id.generate(),
+          userId: p.userId,
+          placeId: p.placeId,
+          certificationId: p.certId,
+          type: p.type,
+          basePoints: p.preview.basePoints,
+          regionWeight: p.preview.regionWeight.toFixed(2),
+          rarityWeight: p.preview.rarityWeight.toFixed(2),
+          eventMultiplier: p.preview.eventMultiplier.toFixed(2),
+          weightedScore: weighted.toString(),
+        })
+        .onConflictDoNothing({ target: scoreEvents.certificationId })
+        .returning({ id: scoreEvents.id });
+      const scored = inserted.length > 0;
+      if (scored && !revisit) {
+        await tx
+          .insert(visits)
+          .values({ id: this.id.generate(), userId: p.userId, placeId: p.placeId })
+          .onConflictDoNothing({ target: [visits.userId, visits.placeId] });
       }
       await tx
         .update(certifications)
         .set({ status: 'ACCEPTED', scoredAt: this.clock.now() })
         .where(eq(certifications.id, p.certId));
-      return { awarded, weightedScore: awarded ? p.preview.estimatedPoints : 0 };
+      return { awarded: scored, weightedScore: scored ? weighted : 0 };
     });
   }
 

@@ -1,10 +1,12 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import type { Env } from '@platform/config/env';
 import { IdService } from '@platform/id/id.service';
 import { GeoService } from '@modules/geo/geo.service';
+import { ScoringService } from '@modules/scoring/scoring.service';
+import { BadgesService } from '@modules/badges/badges.service';
 import { CertificationsRepository } from './certifications.repository';
 import { STORAGE, type StoragePort } from '@platform/storage/storage.port';
 import { SubmitCertificationDto } from './dto/certification.dto';
@@ -21,6 +23,8 @@ const SAFE_IMAGE_KEY = /^certifications\/[A-Za-z0-9_-]+\.(jpg|png|webp)$/;
 
 @Injectable()
 export class CertificationsService {
+  private readonly logger = new Logger(CertificationsService.name);
+
   constructor(
     private readonly repo: CertificationsRepository,
     private readonly geo: GeoService,
@@ -28,6 +32,8 @@ export class CertificationsService {
     @InjectQueue('certification') private readonly queue: Queue,
     private readonly id: IdService,
     private readonly config: ConfigService<Env, true>,
+    private readonly scoring: ScoringService,
+    private readonly badges: BadgesService,
   ) {}
 
   async uploadPhoto(buffer: Buffer, mime: string): Promise<{ imageKey: string }> {
@@ -36,12 +42,14 @@ export class CertificationsService {
   }
 
   async submit(userId: string, dto: SubmitCertificationDto): Promise<SubmitResult> {
-    // 멱등/중복: 첫 imageKey가 이미 어떤 cert에 쓰였으면 그 결과 반환
-    const existing = await this.repo.findCertByImageKey(dto.imageKeys[0]);
-    if (existing) {
-      if (existing.userId !== userId) throw new BadRequestException('imageKey already used');
-      if (existing.status === 'PENDING') await this.queue.add('verify', { certId: existing.id });
-      return { certId: existing.id, status: existing.status as SubmitResult['status'], proximityPass: existing.proximityPass };
+    // 멱등/중복: 사진 있을 때만 imageKey로 판정(0장은 매번 새 인증)
+    if (dto.imageKeys.length > 0) {
+      const existing = await this.repo.findCertByImageKey(dto.imageKeys[0]);
+      if (existing) {
+        if (existing.userId !== userId) throw new BadRequestException('imageKey already used');
+        if (existing.status === 'PENDING') await this.queue.add('verify', { certId: existing.id });
+        return { certId: existing.id, status: existing.status as SubmitResult['status'], proximityPass: existing.proximityPass };
+      }
     }
     const coords = await this.repo.placeCoords(dto.placeId);
     if (!coords) throw new NotFoundException('Place not found');
@@ -63,6 +71,15 @@ export class CertificationsService {
       return { certId, status: 'REJECTED', proximityPass: false };
     }
     await this.repo.createPending(base);
+    if (dto.imageKeys.length === 0) {
+      // 방문(0장): 검증 없이 즉시 적립
+      const preview = await this.scoring.preview(dto.placeId);
+      const accrual = await this.repo.applyAccrual({ certId, userId, placeId: dto.placeId, type: 'VISIT', preview });
+      if (accrual.awarded) {
+        try { await this.badges.evaluate(userId); } catch (e) { this.logger.warn(`badge evaluate failed for ${userId}: ${e}`); }
+      }
+      return { certId, status: 'ACCEPTED', proximityPass: true };
+    }
     await this.queue.add('verify', { certId });
     return { certId, status: 'PENDING', proximityPass: true };
   }

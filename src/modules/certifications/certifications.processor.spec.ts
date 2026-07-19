@@ -21,6 +21,7 @@ describe('CertificationsProcessor', () => {
     scoring.preview.mockResolvedValue({
       action: 'CERT_PHOTO',
       basePoints: 15,
+      typeWeight: 1,
       regionWeight: 1.5,
       rarityWeight: 1,
       eventMultiplier: 1,
@@ -33,6 +34,7 @@ describe('CertificationsProcessor', () => {
       certId: 'c1',
       userId: 'u1',
       placeId: 'p1',
+      type: 'PHOTO',
       preview: expect.objectContaining({ estimatedPoints: 22.5 }),
     });
     expect(repo.reject).not.toHaveBeenCalled();
@@ -45,6 +47,7 @@ describe('CertificationsProcessor', () => {
     scoring.preview.mockResolvedValue({
       action: 'CERT_PHOTO',
       basePoints: 15,
+      typeWeight: 1,
       regionWeight: 1.5,
       rarityWeight: 1,
       eventMultiplier: 1,
@@ -55,12 +58,13 @@ describe('CertificationsProcessor', () => {
     await expect(proc.process(job('c1'))).resolves.toBeUndefined();
   });
 
-  it('accrual not awarded (already collected) → does not evaluate badges', async () => {
+  it('accrual not awarded (idempotent re-processing, no new score_event) → does not evaluate badges', async () => {
     repo.findById.mockResolvedValue(pending);
     verifier.verify.mockResolvedValue({ pass: true });
     scoring.preview.mockResolvedValue({
       action: 'CERT_PHOTO',
       basePoints: 15,
+      typeWeight: 1,
       regionWeight: 1.5,
       rarityWeight: 1,
       eventMultiplier: 1,
@@ -78,6 +82,17 @@ describe('CertificationsProcessor', () => {
     expect(repo.reject).toHaveBeenCalledWith('c1', 'NOT_LANDMARK');
     expect(repo.applyAccrual).not.toHaveBeenCalled();
     expect(badges.evaluate).not.toHaveBeenCalled();
+  });
+
+  it('processor accrues PHOTO with preview + type', async () => {
+    repo.findById.mockResolvedValue({ id: 'c1', userId: 'u1', placeId: 'p1', status: 'PENDING', scoredAt: null });
+    repo.coverImageKey.mockResolvedValue('certifications/a.jpg');
+    verifier.verify.mockResolvedValue({ pass: true });
+    scoring.preview.mockResolvedValue({ action: 'CERT_PHOTO', basePoints: 10, typeWeight: 1, regionWeight: 1, rarityWeight: 1, eventMultiplier: 1, estimatedPoints: 10 });
+    repo.applyAccrual.mockResolvedValue({ awarded: true, weightedScore: 10 });
+    await proc.process({ data: { certId: 'c1' } } as any);
+    expect(repo.applyAccrual).toHaveBeenCalledWith(expect.objectContaining({ certId: 'c1', userId: 'u1', placeId: 'p1', type: 'PHOTO' }));
+    expect(badges.evaluate).toHaveBeenCalledWith('u1');
   });
 
   it('skips when cert missing or not PENDING or already scored (idempotent)', async () => {
