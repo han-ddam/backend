@@ -5,6 +5,7 @@ export * from './users';
 export * from './auth';
 export * from './admin';
 export * from './regions';
+export * from './score-weight-configs';
 export * from './places';
 export * from './agreements';
 export * from './visits';
