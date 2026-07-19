@@ -77,6 +77,15 @@ describe('CertificationsService', () => {
       expect(out).toEqual({ certId: 'cert-x', status: 'PENDING', proximityPass: true });
       expect(repo.createPending).not.toHaveBeenCalled();
     });
+
+    it('submit: first imageKey used by ANOTHER user → 400', async () => {
+      repo.findCertByImageKey.mockResolvedValue({ id: 'cert-y', userId: 'other', status: 'ACCEPTED', proximityPass: true });
+      await expect(service.submit('u1', {
+        placeId: 'p1', imageKeys: ['certifications/a.jpg'], representativeIndex: 0,
+        deviceLat: 37.5, deviceLng: 127.0, visibility: 'PUBLIC',
+      } as any)).rejects.toThrow('imageKey already used');
+      expect(repo.createPending).not.toHaveBeenCalled();
+    });
   });
 
   it('getCertification throws NotFound when not owned/missing', async () => {
