@@ -118,49 +118,49 @@ export class CertificationsRepository {
       .where(eq(certifications.id, id));
   }
 
-  /** 검증 통과분 적립 — 첫 수집이면 score_event+visit 생성, 아니면 스킵. cert ACCEPTED. */
+  /** 검증 통과분 적립 — 첫 수집(×1, visit 행) / 재방문(×0.5). cert당 1건(멱등). */
   async applyAccrual(p: {
     certId: string;
     userId: string;
     placeId: string;
+    type: 'VISIT' | 'PHOTO';
     preview: ScorePreview;
   }): Promise<{ awarded: boolean; weightedScore: number }> {
     return this.db.transaction(async (tx) => {
-      const [existing] = await tx
+      const [prior] = await tx
         .select({ id: scoreEvents.id })
         .from(scoreEvents)
         .where(and(eq(scoreEvents.userId, p.userId), eq(scoreEvents.placeId, p.placeId)));
-
-      let awarded = false;
-      if (!existing) {
-        const inserted = await tx
-          .insert(scoreEvents)
-          .values({
-            id: this.id.generate(),
-            userId: p.userId,
-            placeId: p.placeId,
-            certificationId: p.certId,
-            basePoints: p.preview.basePoints,
-            regionWeight: p.preview.regionWeight.toFixed(2),
-            rarityWeight: p.preview.rarityWeight.toFixed(2),
-            eventMultiplier: p.preview.eventMultiplier.toFixed(2),
-            weightedScore: p.preview.estimatedPoints.toString(),
-          })
-          .onConflictDoNothing({ target: [scoreEvents.userId, scoreEvents.placeId] })
-          .returning({ id: scoreEvents.id });
-        if (inserted.length > 0) {
-          awarded = true;
-          await tx
-            .insert(visits)
-            .values({ id: this.id.generate(), userId: p.userId, placeId: p.placeId })
-            .onConflictDoNothing({ target: [visits.userId, visits.placeId] });
-        }
+      const revisit = !!prior;
+      const weighted = Math.round(p.preview.estimatedPoints * (revisit ? 0.5 : 1) * 10) / 10;
+      const inserted = await tx
+        .insert(scoreEvents)
+        .values({
+          id: this.id.generate(),
+          userId: p.userId,
+          placeId: p.placeId,
+          certificationId: p.certId,
+          type: p.type,
+          basePoints: p.preview.basePoints,
+          regionWeight: p.preview.regionWeight.toFixed(2),
+          rarityWeight: p.preview.rarityWeight.toFixed(2),
+          eventMultiplier: p.preview.eventMultiplier.toFixed(2),
+          weightedScore: weighted.toString(),
+        })
+        .onConflictDoNothing({ target: scoreEvents.certificationId })
+        .returning({ id: scoreEvents.id });
+      const scored = inserted.length > 0;
+      if (scored && !revisit) {
+        await tx
+          .insert(visits)
+          .values({ id: this.id.generate(), userId: p.userId, placeId: p.placeId })
+          .onConflictDoNothing({ target: [visits.userId, visits.placeId] });
       }
       await tx
         .update(certifications)
         .set({ status: 'ACCEPTED', scoredAt: this.clock.now() })
         .where(eq(certifications.id, p.certId));
-      return { awarded, weightedScore: awarded ? p.preview.estimatedPoints : 0 };
+      return { awarded: scored, weightedScore: scored ? weighted : 0 };
     });
   }
 

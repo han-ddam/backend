@@ -6,7 +6,7 @@ import { BadgesService } from '@modules/badges/badges.service';
 import { CertificationsRepository } from './certifications.repository';
 import { VERIFIER, type VerifierPort } from './verify/verifier.port';
 
-/** 'certification' 큐 소비 — 검증(VerifierPort) → 통과 시 적립(첫 수집만). 워커에서 활성. */
+/** 'certification' 큐 소비 — 검증(VerifierPort) → 통과 시 적립(첫 수집 ×1 + visit, 재방문 ×0.5). 워커에서 활성. */
 @Processor('certification')
 export class CertificationsProcessor extends WorkerHost {
   private readonly logger = new Logger(CertificationsProcessor.name);
@@ -40,6 +40,7 @@ export class CertificationsProcessor extends WorkerHost {
       certId: cert.id,
       userId: cert.userId,
       placeId: cert.placeId,
+      type: 'PHOTO',
       preview,
     });
     if (accrual.awarded) {

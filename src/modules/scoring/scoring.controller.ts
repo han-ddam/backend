@@ -23,6 +23,7 @@ export class ScoringController {
         result: {
           action: 'CERT_PHOTO',
           basePoints: 15,
+          typeWeight: 1.0,
           regionWeight: 1.5,
           rarityWeight: 1.0,
           eventMultiplier: 1.0,

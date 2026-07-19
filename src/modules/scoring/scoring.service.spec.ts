@@ -42,6 +42,7 @@ describe('ScoringService', () => {
     expect(out).toEqual({
       action: 'CERT_PHOTO',
       basePoints: 15,
+      typeWeight: 1,
       regionWeight: 1,
       rarityWeight: 1,
       eventMultiplier: 1,

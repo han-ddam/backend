@@ -19,6 +19,7 @@ export class ScoringService {
     const weight = await this.repo.regionWeight(place.provinceCode);
     return calculateScore(ACTION, {
       basePoints,
+      typeWeight: 1.0, // Plan 2가 place.weight_config로 대체
       regionWeight: weight === null ? 1.0 : Number(weight),
       rarityWeight: Number(place.rarityWeight),
       eventMultiplier: 1.0,
