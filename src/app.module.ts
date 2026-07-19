@@ -26,6 +26,7 @@ import { CollectionsModule } from '@modules/collections/collections.module';
 import { RatingsModule } from '@modules/ratings/ratings.module';
 import { BookmarksModule } from '@modules/bookmarks/bookmarks.module';
 import { BadgesModule } from '@modules/badges/badges.module';
+import { RepresentativesModule } from '@modules/representatives/representatives.module';
 
 /**
  * Root composition. PlatformModule (global) provides infra to every domain
@@ -64,6 +65,7 @@ import { BadgesModule } from '@modules/badges/badges.module';
     RatingsModule,
     BookmarksModule,
     BadgesModule,
+    RepresentativesModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
