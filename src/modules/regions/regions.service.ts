@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { buildCursorPage } from '@platform/pagination/cursor';
 import type { localeEnum } from '@db/schema';
+import { RepresentativeService } from '@modules/representatives/representatives.service';
 import { RegionsRepository } from './regions.repository';
 
 type Locale = (typeof localeEnum.enumValues)[number];
@@ -37,7 +38,10 @@ export interface RecommendedItem {
 
 @Injectable()
 export class RegionsService {
-  constructor(private readonly repo: RegionsRepository) {}
+  constructor(
+    private readonly repo: RegionsRepository,
+    private readonly rep: RepresentativeService,
+  ) {}
 
   /** 시·도 목록 — 코드·이름 (locale 우선, KO 폴백), 코드 정수 오름차순. */
   async listRegions(locale: Locale): Promise<RegionListItem[]> {
@@ -89,17 +93,20 @@ export class RegionsService {
       cursor: params.cursor,
     });
     const page = buildCursorPage(rows, limit);
-    const trans = await this.repo.placeTransForMany(
-      page.items.map((r) => r.id),
-      [params.locale, 'KO'],
-    );
+    const [trans, imgMap] = await Promise.all([
+      this.repo.placeTransForMany(
+        page.items.map((r) => r.id),
+        [params.locale, 'KO'],
+      ),
+      this.rep.resolvePlaceImages(params.userId, page.items.map((r) => r.id)),
+    ]);
     const items: RegionPlaceItem[] = page.items.map((r) => {
       const t = this.pickTrans(trans, r.id, params.locale);
       return {
         placeId: r.id,
         name: t?.name ?? '',
         address: t?.address ?? null,
-        imageUrl: r.imageUrl ?? null,
+        imageUrl: imgMap.get(r.id) ?? null,
         visitStatus: r.visited ? 'VISITED' : r.bookmarked ? 'PLANNED' : 'NONE',
       };
     });
@@ -121,13 +128,16 @@ export class RegionsService {
       userId: params.userId,
       limit,
     });
-    const trans = await this.repo.placeTransForMany(
-      rows.map((r) => r.id),
-      [params.locale, 'KO'],
-    );
+    const [trans, imgMap] = await Promise.all([
+      this.repo.placeTransForMany(
+        rows.map((r) => r.id),
+        [params.locale, 'KO'],
+      ),
+      this.rep.resolvePlaceImages(params.userId, rows.map((r) => r.id)),
+    ]);
     return rows.map((r) => {
       const t = this.pickTrans(trans, r.id, params.locale);
-      return { placeId: r.id, name: t?.name ?? '', address: t?.address ?? null, imageUrl: r.imageUrl ?? null };
+      return { placeId: r.id, name: t?.name ?? '', address: t?.address ?? null, imageUrl: imgMap.get(r.id) ?? null };
     });
   }
 

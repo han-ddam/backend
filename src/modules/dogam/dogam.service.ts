@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { localeEnum } from '@db/schema';
 import { RegionsService } from '@modules/regions/regions.service';
+import { RepresentativeService } from '@modules/representatives/representatives.service';
 import { buildCursorPage, type CursorPage } from '@platform/pagination/cursor';
 import { DogamRepository } from './dogam.repository';
 
@@ -13,6 +14,7 @@ export interface RegionCard {
   collected: number;
   total: number;
   locked: boolean;
+  imageUrl: string | null;
 }
 
 export interface RecentItem {
@@ -27,6 +29,7 @@ export class DogamService {
   constructor(
     private readonly repo: DogamRepository,
     private readonly regionsService: RegionsService,
+    private readonly rep: RepresentativeService,
   ) {}
 
   async overview(userId: string): Promise<{ percent: number; collected: number; total: number }> {
@@ -40,7 +43,8 @@ export class DogamService {
       this.repo.regionTotals(),
       this.repo.regionVisited(userId),
     ]);
-    return names.map(({ code, name }) => {
+    const images = await Promise.all(names.map(({ code }) => this.rep.resolveRegionImage(userId, code)));
+    return names.map(({ code, name }, i) => {
       const total = totals.get(code) ?? 0;
       const collected = visited.get(code) ?? 0;
       return {
@@ -50,6 +54,7 @@ export class DogamService {
         total,
         percent: total > 0 ? Math.round((collected / total) * 100) : 0,
         locked: false,
+        imageUrl: images[i],
       };
     });
   }
@@ -65,23 +70,19 @@ export class DogamService {
     const page = buildCursorPage(rows, lim);
     const ids = page.items.map((r) => r.placeId);
     const names = await this.repo.placeNames(ids, [locale, 'KO']);
-    const images = await this.repo.certImagesFor(userId, ids);
-    const imgMap = new Map(images.map((i) => [i.placeId, i.imageKey]));
+    const imgMap = await this.rep.resolvePlaceImages(userId, ids);
     const nameMap = new Map<string, { locale: string; name: string }[]>();
     for (const n of names) {
       const list = nameMap.get(n.placeId);
       if (list) list.push(n);
       else nameMap.set(n.placeId, [n]);
     }
-    const items: RecentItem[] = page.items.map((r) => {
-      const key = imgMap.get(r.placeId);
-      return {
-        placeId: r.placeId,
-        name: this.pickName(nameMap.get(r.placeId) ?? [], locale),
-        imageUrl: key ? `/api/certifications/photos/${key}` : null,
-        collectedAt: r.createdAt.toISOString(),
-      };
-    });
+    const items: RecentItem[] = page.items.map((r) => ({
+      placeId: r.placeId,
+      name: this.pickName(nameMap.get(r.placeId) ?? [], locale),
+      imageUrl: imgMap.get(r.placeId) ?? null,
+      collectedAt: r.createdAt.toISOString(),
+    }));
     return { items, nextCursor: page.nextCursor };
   }
 

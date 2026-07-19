@@ -85,7 +85,7 @@ export class RegionsRepository {
     status: 'ALL' | 'VISITED' | 'PLANNED';
     limit: number;
     cursor?: string;
-  }): Promise<Array<{ id: string; createdAt: Date; visited: boolean; bookmarked: boolean; imageUrl: string | null }>> {
+  }): Promise<Array<{ id: string; createdAt: Date; visited: boolean; bookmarked: boolean }>> {
     const c = decodeCursor(p.cursor);
     const conds: SQL[] = [
       like(places.regionCode, `${p.code}\\_%`),
@@ -108,7 +108,6 @@ export class RegionsRepository {
           createdAt: places.createdAt,
           visited: sql<boolean>`false`,
           bookmarked: sql<boolean>`false`,
-          imageUrl: places.imageUrl,
         })
         .from(places)
         .where(and(...conds))
@@ -126,7 +125,6 @@ export class RegionsRepository {
         createdAt: places.createdAt,
         visited: sql<boolean>`${visits.id} is not null`,
         bookmarked: sql<boolean>`${userPlaceBookmarks.placeId} is not null`,
-        imageUrl: places.imageUrl,
       })
       .from(places)
       .leftJoin(visits, and(eq(visits.placeId, places.id), eq(visits.userId, p.userId)))
@@ -159,7 +157,7 @@ export class RegionsRepository {
     code: string;
     userId: string | null;
     limit: number;
-  }): Promise<{ id: string; imageUrl: string | null }[]> {
+  }): Promise<{ id: string }[]> {
     const conds: SQL[] = [
       like(places.regionCode, `${p.code}\\_%`),
       eq(places.status, 'ACTIVE'),
@@ -170,7 +168,7 @@ export class RegionsRepository {
       );
     }
     return this.db
-      .select({ id: places.id, imageUrl: places.imageUrl })
+      .select({ id: places.id })
       .from(places)
       .where(and(...conds))
       .orderBy(desc(places.basePoints), desc(places.id))

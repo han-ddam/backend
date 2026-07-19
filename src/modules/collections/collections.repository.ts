@@ -64,7 +64,7 @@ export class CollectionsRepository {
     userId: string | null,
     cursor: { seq: number; id: string } | null,
     limit: number,
-  ): Promise<{ placeId: string; seq: number; imageUrl: string | null; visited: boolean }[]> {
+  ): Promise<{ placeId: string; seq: number; visited: boolean }[]> {
     const conds: SQL[] = [eq(collectionPlace.collectionId, collectionId)];
     if (cursor) {
       conds.push(
@@ -79,7 +79,6 @@ export class CollectionsRepository {
       .select({
         placeId: collectionPlace.placeId,
         seq: collectionPlace.seq,
-        imageUrl: places.imageUrl,
         visited,
       })
       .from(collectionPlace)
@@ -163,43 +162,39 @@ export class CollectionsRepository {
     return map;
   }
 
-  /** 테마별 소속 place image_url 앞 4개(seq ASC, place_id ASC, null 제외). */
-  async themeThumbnails(ids: string[]): Promise<Map<string, string[]>> {
+  /** 테마별 소속 placeId 앞 4개(seq ASC, place_id ASC). */
+  async themePlaceIds(ids: string[]): Promise<Map<string, string[]>> {
     const map = new Map<string, string[]>();
     if (ids.length === 0) return map;
     for (const id of ids) map.set(id, []);
     const rows = await this.db
-      .select({ cid: collectionPlace.collectionId, imageUrl: places.imageUrl, seq: collectionPlace.seq, pid: collectionPlace.placeId })
+      .select({ cid: collectionPlace.collectionId, pid: collectionPlace.placeId })
       .from(collectionPlace)
-      .innerJoin(places, eq(places.id, collectionPlace.placeId))
-      .where(and(inArray(collectionPlace.collectionId, ids), sql`${places.imageUrl} is not null`))
+      .where(inArray(collectionPlace.collectionId, ids))
       .orderBy(asc(collectionPlace.seq), asc(collectionPlace.placeId));
     for (const r of rows) {
       const arr = map.get(r.cid)!;
-      if (arr.length < 4 && r.imageUrl) arr.push(r.imageUrl);
+      if (arr.length < 4) arr.push(r.pid);
     }
     return map;
   }
 
-  /** province(parent_code)별 소속 place image_url 앞 4개. dogam과 동일한 parent_code 기준. */
-  async regionThumbnails(codes: string[]): Promise<Map<string, string[]>> {
+  /** province(parent_code)별 소속 placeId 앞 4개(id ASC). dogam과 동일한 parent_code 기준. */
+  async regionPlaceIds(codes: string[]): Promise<Map<string, string[]>> {
     const map = new Map<string, string[]>();
     if (codes.length === 0) return map;
     for (const c of codes) map.set(c, []);
-    const rows = await this.db.execute<{ prov: string; image_url: string }>(sql`
-      SELECT prov, image_url FROM (
-        SELECT r.parent_code AS prov, p.image_url,
+    const rows = await this.db.execute<{ prov: string; id: string }>(sql`
+      SELECT prov, id FROM (
+        SELECT r.parent_code AS prov, p.id,
                row_number() OVER (PARTITION BY r.parent_code ORDER BY p.id ASC) AS rn
-        FROM ${places} p
-        JOIN ${regions} r ON r.code = p.region_code
-        WHERE p.status = 'ACTIVE' AND p.image_url IS NOT NULL
-          AND r.parent_code = ANY(${codes})
-      ) t WHERE rn <= 4
-      ORDER BY prov, rn
+        FROM ${places} p JOIN ${regions} r ON r.code = p.region_code
+        WHERE p.status = 'ACTIVE' AND r.parent_code = ANY(${codes})
+      ) t WHERE rn <= 4 ORDER BY prov, rn
     `);
     for (const r of rows) {
       const arr = map.get(r.prov);
-      if (arr) arr.push(r.image_url);
+      if (arr) arr.push(r.id);
     }
     return map;
   }

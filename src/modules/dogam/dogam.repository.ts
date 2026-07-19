@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, inArray, lt, or, sql, type SQL } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import { decodeCursor } from '@platform/pagination/cursor';
-import { places, visits, regions, placeTrans, certifications, certificationImages, type localeEnum } from '@db/schema';
+import { places, visits, regions, placeTrans, type localeEnum } from '@db/schema';
 
 type Locale = (typeof localeEnum.enumValues)[number];
 
@@ -84,31 +84,5 @@ export class DogamRepository {
       .select({ placeId: placeTrans.placeId, locale: placeTrans.locale, name: placeTrans.name })
       .from(placeTrans)
       .where(and(inArray(placeTrans.placeId, placeIds), inArray(placeTrans.locale, locales)));
-  }
-
-  /** (user,place)별 최신 ACCEPTED 인증의 커버 image_key. */
-  async certImagesFor(
-    userId: string,
-    placeIds: string[],
-  ): Promise<{ placeId: string; imageKey: string }[]> {
-    if (placeIds.length === 0) return [];
-    return this.db
-      .selectDistinctOn([certifications.placeId], {
-        placeId: certifications.placeId,
-        imageKey: certificationImages.imageKey,
-      })
-      .from(certifications)
-      .innerJoin(
-        certificationImages,
-        and(eq(certificationImages.certId, certifications.id), eq(certificationImages.isRepresentative, true)),
-      )
-      .where(
-        and(
-          eq(certifications.userId, userId),
-          inArray(certifications.placeId, placeIds),
-          eq(certifications.status, 'ACCEPTED'),
-        ),
-      )
-      .orderBy(certifications.placeId, desc(certifications.createdAt), desc(certifications.id));
   }
 }
