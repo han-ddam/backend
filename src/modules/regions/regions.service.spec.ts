@@ -3,6 +3,7 @@ import { RegionsService } from './regions.service';
 
 describe('RegionsService', () => {
   let repo: any;
+  let rep: any;
   let service: RegionsService;
 
   beforeEach(() => {
@@ -17,7 +18,11 @@ describe('RegionsService', () => {
       listRecommended: jest.fn(),
       listProvinces: jest.fn(),
     };
-    service = new RegionsService(repo);
+    rep = {
+      resolvePlaceImages: jest.fn().mockResolvedValue(new Map()),
+      resolveRegionImage: jest.fn().mockResolvedValue(null),
+    };
+    service = new RegionsService(repo, rep);
   });
 
   describe('getRegion', () => {
@@ -52,11 +57,12 @@ describe('RegionsService', () => {
   describe('listPlaces', () => {
     it('maps visitStatus and builds counts + nextCursor', async () => {
       repo.listPlaces.mockResolvedValue([
-        { id: 'p1', createdAt: new Date('2026-07-07T00:00:00Z'), visited: true, bookmarked: false, imageUrl: 'http://tong/p1.jpg' },
+        { id: 'p1', createdAt: new Date('2026-07-07T00:00:00Z'), visited: true, bookmarked: false },
       ]);
       repo.placeTransForMany.mockResolvedValue([
         { placeId: 'p1', locale: 'KO', name: '영금정', address: '속초' },
       ]);
+      rep.resolvePlaceImages.mockResolvedValue(new Map([['p1', 'http://tong/p1.jpg']]));
       repo.countPlaces.mockResolvedValue(5);
       repo.countVisited.mockResolvedValue(1);
       repo.countPlanned.mockResolvedValue(2);
@@ -66,6 +72,7 @@ describe('RegionsService', () => {
       expect(out.items[0]).toEqual({
         placeId: 'p1', name: '영금정', address: '속초', imageUrl: 'http://tong/p1.jpg', visitStatus: 'VISITED',
       });
+      expect(rep.resolvePlaceImages).toHaveBeenCalledWith('u1', ['p1']);
       expect(out.counts).toEqual({ all: 5, visited: 1, planned: 2 });
       expect(out.nextCursor).toBeNull();
     });
@@ -86,7 +93,7 @@ describe('RegionsService', () => {
 
     it('PLANNED filter maps bookmarked-not-visited rows', async () => {
       repo.listPlaces.mockResolvedValue([
-        { id: 'p2', createdAt: new Date('2026-07-06T00:00:00Z'), visited: false, bookmarked: true, imageUrl: null },
+        { id: 'p2', createdAt: new Date('2026-07-06T00:00:00Z'), visited: false, bookmarked: true },
       ]);
       repo.placeTransForMany.mockResolvedValue([
         { placeId: 'p2', locale: 'KO', name: '설악산', address: null },
@@ -106,13 +113,15 @@ describe('RegionsService', () => {
   });
 
   describe('listRecommended', () => {
-    it('maps recommended items with imageUrl', async () => {
-      repo.listRecommended.mockResolvedValue([{ id: 'p2', imageUrl: null }]);
+    it('maps recommended items with resolver imageUrl', async () => {
+      repo.listRecommended.mockResolvedValue([{ id: 'p2' }]);
       repo.placeTransForMany.mockResolvedValue([
         { placeId: 'p2', locale: 'KO', name: '설악산', address: '속초' },
       ]);
+      rep.resolvePlaceImages.mockResolvedValue(new Map([['p2', 'http://tong/p2.jpg']]));
       const out = await service.listRecommended({ code: '32', userId: 'u1', locale: 'KO', limit: 1 });
-      expect(out).toEqual([{ placeId: 'p2', name: '설악산', address: '속초', imageUrl: null }]);
+      expect(rep.resolvePlaceImages).toHaveBeenCalledWith('u1', ['p2']);
+      expect(out).toEqual([{ placeId: 'p2', name: '설악산', address: '속초', imageUrl: 'http://tong/p2.jpg' }]);
     });
   });
 

@@ -2,7 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { CollectionsService } from './collections.service';
 
 describe('CollectionsService', () => {
-  let repo: any, dogam: any, id: any, service: CollectionsService;
+  let repo: any, dogam: any, id: any, rep: any, service: CollectionsService;
 
   beforeEach(() => {
     repo = {
@@ -13,8 +13,8 @@ describe('CollectionsService', () => {
       collectionCounts: jest.fn(),
       themesPage: jest.fn(),
       themeProgress: jest.fn(),
-      themeThumbnails: jest.fn(),
-      regionThumbnails: jest.fn(),
+      themePlaceIds: jest.fn(),
+      regionPlaceIds: jest.fn(),
       anyActiveTheme: jest.fn(),
       collectionExists: jest.fn(),
       placeActive: jest.fn(),
@@ -28,7 +28,11 @@ describe('CollectionsService', () => {
     dogam = { regions: jest.fn() };
     let n = 0;
     id = { generate: jest.fn(() => `id-${++n}`) };
-    service = new CollectionsService(repo, dogam, id);
+    rep = {
+      resolvePlaceImages: jest.fn().mockResolvedValue(new Map()),
+      resolveRegionImage: jest.fn().mockResolvedValue(null),
+    };
+    service = new CollectionsService(repo, dogam, id, rep);
   });
 
   describe('getCollectionDetail', () => {
@@ -37,20 +41,21 @@ describe('CollectionsService', () => {
       await expect(service.getCollectionDetail('c1', 'KO', 'u1')).rejects.toThrow(NotFoundException);
     });
 
-    it('maps places with imageUrl, visitStatus, counts; nextCursor from seq', async () => {
+    it('maps places with resolver imageUrl, visitStatus, counts; nextCursor from seq', async () => {
       repo.getActiveCollection.mockResolvedValue({ id: 'c1' });
       repo.collectionTrans.mockResolvedValue([
         { collectionId: 'c1', locale: 'KO', title: '동해 명소', description: '설명' },
       ]);
       repo.collectionCounts.mockResolvedValue({ all: 8, visited: 3 });
       repo.detailPlacesPage.mockResolvedValue([
-        { placeId: 'p1', seq: 1, imageUrl: 'http://tong/p1.jpg', visited: true },
-        { placeId: 'p2', seq: 2, imageUrl: null, visited: false },
+        { placeId: 'p1', seq: 1, visited: true },
+        { placeId: 'p2', seq: 2, visited: false },
       ]);
       repo.placeTransForMany.mockResolvedValue([
         { placeId: 'p1', locale: 'KO', name: '영금정', address: '속초' },
         { placeId: 'p2', locale: 'KO', name: '설악산', address: null },
       ]);
+      rep.resolvePlaceImages.mockResolvedValue(new Map([['p1', 'http://tong/p1.jpg']]));
 
       const out = await service.getCollectionDetail('c1', 'KO', 'u1', undefined, 1);
 
@@ -63,17 +68,19 @@ describe('CollectionsService', () => {
       expect(out.nextCursor).not.toBeNull();
       // fetch uses limit+1
       expect(repo.detailPlacesPage).toHaveBeenCalledWith('c1', 'u1', null, 1);
+      expect(rep.resolvePlaceImages).toHaveBeenCalledWith('u1', ['p1']);
     });
 
     it('guest gets NONE visitStatus', async () => {
       repo.getActiveCollection.mockResolvedValue({ id: 'c1' });
       repo.collectionTrans.mockResolvedValue([{ collectionId: 'c1', locale: 'KO', title: 't', description: null }]);
       repo.collectionCounts.mockResolvedValue({ all: 1, visited: 0 });
-      repo.detailPlacesPage.mockResolvedValue([{ placeId: 'p1', seq: 1, imageUrl: null, visited: false }]);
+      repo.detailPlacesPage.mockResolvedValue([{ placeId: 'p1', seq: 1, visited: false }]);
       repo.placeTransForMany.mockResolvedValue([{ placeId: 'p1', locale: 'KO', name: '영금정', address: null }]);
 
       const out = await service.getCollectionDetail('c1', 'KO', null, undefined, 20);
       expect(out.items[0].visitStatus).toBe('NONE');
+      expect(rep.resolvePlaceImages).toHaveBeenCalledWith(null, ['p1']);
     });
   });
 
@@ -93,7 +100,8 @@ describe('CollectionsService', () => {
           ['c2', { filled: 0, total: 5 }],
         ]),
       );
-      repo.themeThumbnails.mockResolvedValue(new Map([['c1', ['http://tong/a.jpg']], ['c2', []]]));
+      repo.themePlaceIds.mockResolvedValue(new Map([['c1', ['p1']], ['c2', []]]));
+      rep.resolvePlaceImages.mockResolvedValue(new Map([['p1', 'http://tong/a.jpg']]));
 
       const out = await service.listThemesWithProgress('u1', 'KO', undefined, 1);
 
@@ -119,12 +127,13 @@ describe('CollectionsService', () => {
 
     it('regions first then themes, with kind; page spans boundary', async () => {
       dogam.regions.mockResolvedValue(regionCards);
-      repo.regionThumbnails.mockResolvedValue(new Map([['11', ['http://tong/s.jpg']], ['32', []]]));
+      repo.regionPlaceIds.mockResolvedValue(new Map([['11', ['pr1']], ['32', []]]));
       // limit 3: 2 regions + 1 theme
       repo.themesPage.mockResolvedValue([{ id: 'c1', seq: 1 }]); // remaining=1, +1 → returns ≤2; here 1 (no next)
       repo.collectionTrans.mockResolvedValue([{ collectionId: 'c1', locale: 'KO', title: '동해', description: null }]);
       repo.themeProgress.mockResolvedValue(new Map([['c1', { filled: 2, total: 6 }]]));
-      repo.themeThumbnails.mockResolvedValue(new Map([['c1', []]]));
+      repo.themePlaceIds.mockResolvedValue(new Map([['c1', []]]));
+      rep.resolvePlaceImages.mockResolvedValue(new Map([['pr1', 'http://tong/s.jpg']]));
 
       const out = await service.listMyCollections('u1', 'KO', undefined, 3);
 
@@ -138,7 +147,7 @@ describe('CollectionsService', () => {
 
     it('page full on regions → nextCursor is region marker (more exist)', async () => {
       dogam.regions.mockResolvedValue(regionCards);
-      repo.regionThumbnails.mockResolvedValue(new Map([['11', []]]));
+      repo.regionPlaceIds.mockResolvedValue(new Map([['11', []]]));
       repo.anyActiveTheme.mockResolvedValue(true);
 
       const out = await service.listMyCollections('u1', 'KO', undefined, 1);
@@ -154,7 +163,7 @@ describe('CollectionsService', () => {
       repo.themesPage.mockResolvedValue([{ id: 'c2', seq: 5 }]);
       repo.collectionTrans.mockResolvedValue([{ collectionId: 'c2', locale: 'KO', title: '등대', description: null }]);
       repo.themeProgress.mockResolvedValue(new Map([['c2', { filled: 1, total: 3 }]]));
-      repo.themeThumbnails.mockResolvedValue(new Map([['c2', []]]));
+      repo.themePlaceIds.mockResolvedValue(new Map([['c2', []]]));
       const { encodeMergedTheme } = await import('./collections.cursor');
 
       const out = await service.listMyCollections('u1', 'KO', encodeMergedTheme(4, 'c1'), 20);

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type { localeEnum } from '@db/schema';
 import { IdService } from '@platform/id/id.service';
 import { DogamService } from '@modules/dogam/dogam.service';
+import { RepresentativeService } from '@modules/representatives/representatives.service';
 import { CollectionsRepository } from './collections.repository';
 import {
   decodeSeqCursor,
@@ -44,6 +45,7 @@ export class CollectionsService {
     private readonly repo: CollectionsRepository,
     private readonly dogam: DogamService,
     private readonly id: IdService,
+    private readonly rep: RepresentativeService,
   ) {}
 
   async getCollectionDetail(
@@ -71,17 +73,20 @@ export class CollectionsService {
     ]);
     const t = this.pickTrans(trans, locale);
     const page = buildSeqPage(rows, lim, (r) => ({ seq: r.seq, id: r.placeId }));
-    const names = await this.repo.placeTransForMany(
-      page.items.map((r) => r.placeId),
-      [locale, 'KO'],
-    );
+    const [names, imgMap] = await Promise.all([
+      this.repo.placeTransForMany(
+        page.items.map((r) => r.placeId),
+        [locale, 'KO'],
+      ),
+      this.rep.resolvePlaceImages(userId, page.items.map((r) => r.placeId)),
+    ]);
     const items: CollectionDetailItem[] = page.items.map((r) => {
       const pt = this.pickPlaceName(names.filter((x) => x.placeId === r.placeId), locale);
       return {
         placeId: r.placeId,
         name: pt?.name ?? '',
         address: pt?.address ?? null,
-        imageUrl: r.imageUrl ?? null,
+        imageUrl: imgMap.get(r.placeId) ?? null,
         visitStatus: r.visited ? 'VISITED' : 'NONE',
       };
     });
@@ -116,11 +121,13 @@ export class CollectionsService {
   ): Promise<ThemeCard[]> {
     if (rows.length === 0) return [];
     const ids = rows.map((r) => r.id);
-    const [trans, progress, thumbs] = await Promise.all([
+    const [trans, progress, idMap] = await Promise.all([
       this.repo.collectionTrans(ids, [locale, 'KO']),
       this.repo.themeProgress(userId, ids),
-      this.repo.themeThumbnails(ids),
+      this.repo.themePlaceIds(ids),
     ]);
+    const allIds = [...new Set([...idMap.values()].flat())];
+    const urlMap = await this.rep.resolvePlaceImages(userId, allIds);
     return rows.map((r) => {
       const t = this.pickTrans(trans.filter((x) => x.collectionId === r.id), locale);
       const p = progress.get(r.id) ?? { filled: 0, total: 0 };
@@ -129,7 +136,9 @@ export class CollectionsService {
         title: t?.title ?? '',
         filled: p.filled,
         total: p.total,
-        thumbnails: thumbs.get(r.id) ?? [],
+        thumbnails: (idMap.get(r.id) ?? [])
+          .map((pid) => urlMap.get(pid))
+          .filter((u): u is string => !!u),
       };
     });
   }
@@ -153,7 +162,9 @@ export class CollectionsService {
         : 0;
       const slice = startIdx === -1 ? [] : regionCards.slice(startIdx, startIdx + lim);
       if (slice.length > 0) {
-        const thumbs = await this.repo.regionThumbnails(slice.map((r) => r.sidoCode));
+        const idMap = await this.repo.regionPlaceIds(slice.map((r) => r.sidoCode));
+        const allIds = [...new Set([...idMap.values()].flat())];
+        const urlMap = await this.rep.resolvePlaceImages(userId, allIds);
         for (const r of slice) {
           items.push({
             kind: 'REGION',
@@ -161,7 +172,9 @@ export class CollectionsService {
             title: r.name,
             filled: r.collected,
             total: r.total,
-            thumbnails: thumbs.get(r.sidoCode) ?? [],
+            thumbnails: (idMap.get(r.sidoCode) ?? [])
+              .map((pid) => urlMap.get(pid))
+              .filter((u): u is string => !!u),
           });
         }
       }

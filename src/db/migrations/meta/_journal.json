@@ -169,6 +169,13 @@
       "when": 1784474691953,
       "tag": "0023_broken_vision",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784475441896,
+      "tag": "0024_faulty_kulan_gath",
+      "breakpoints": true
     }
   ]
 }
