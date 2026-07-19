@@ -9,13 +9,14 @@ export class RepresentativeService {
 
   /** placeId → 도감 썸네일 URL. 핀 → 최신 커버 → 오피셜 → null. */
   async resolvePlaceImages(userId: string | null, placeIds: string[]): Promise<Map<string, string | null>> {
-    const official = await this.repo.officialImages(placeIds);
     const result = new Map<string, string | null>();
     if (!userId) {
+      const official = await this.repo.officialImages(placeIds);
       for (const id of placeIds) result.set(id, official.get(id) ?? null);
       return result;
     }
-    const [covers, pins] = await Promise.all([
+    const [official, covers, pins] = await Promise.all([
+      this.repo.officialImages(placeIds),
       this.repo.latestCoverByPlace(userId, placeIds),
       this.repo.placePins(userId, placeIds),
     ]);

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import {
   certifications, certificationImages, places, regions,
@@ -73,7 +73,7 @@ export class RepresentativeRepository {
       .select({ imageUrl: places.imageUrl })
       .from(places)
       .innerJoin(regions, eq(regions.code, places.regionCode))
-      .where(and(eq(regions.parentCode, provinceCode), eq(places.status, 'ACTIVE'), sql`${places.imageUrl} is not null`))
+      .where(and(eq(regions.parentCode, provinceCode), eq(places.status, 'ACTIVE'), isNotNull(places.imageUrl)))
       .orderBy(asc(places.id))
       .limit(1);
     return row?.imageUrl ?? null;

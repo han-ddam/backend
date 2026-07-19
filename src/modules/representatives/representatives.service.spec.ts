@@ -32,6 +32,7 @@ describe('RepresentativeService', () => {
       expect(m.get('p1')).toBe('http://off/1.jpg');
       expect(m.get('p2')).toBeNull();
       expect(repo.latestCoverByPlace).not.toHaveBeenCalled();
+      expect(repo.placePins).not.toHaveBeenCalled();
     });
   });
 
@@ -50,6 +51,7 @@ describe('RepresentativeService', () => {
       repo.officialRegionCover.mockResolvedValue('http://off/cover.jpg');
       expect(await svc.resolveRegionImage(null, '11')).toBe('http://off/cover.jpg');
       expect(repo.regionPin).not.toHaveBeenCalled();
+      expect(repo.firstCoverInProvince).not.toHaveBeenCalled();
     });
   });
 
@@ -64,6 +66,20 @@ describe('RepresentativeService', () => {
       repo.certImageOwner.mockResolvedValue({ placeId: 'p1', provinceCode: '11' });
       await svc.pinPlace('u1', 'p1', 'ci-1');
       expect(repo.upsertPlacePin).toHaveBeenCalledWith('u1', 'p1', 'ci-1');
+    });
+  });
+
+  describe('pinRegion', () => {
+    it('rejects cert image not owned / wrong province', async () => {
+      repo.certImageOwner.mockResolvedValue(null);
+      await expect(svc.pinRegion('u1', '11', 'ci-x')).rejects.toBeInstanceOf(BadRequestException);
+      repo.certImageOwner.mockResolvedValue({ placeId: 'p1', provinceCode: '26' });
+      await expect(svc.pinRegion('u1', '11', 'ci-x')).rejects.toBeInstanceOf(BadRequestException);
+    });
+    it('upserts when owned + matching province', async () => {
+      repo.certImageOwner.mockResolvedValue({ placeId: 'p1', provinceCode: '11' });
+      await svc.pinRegion('u1', '11', 'ci-1');
+      expect(repo.upsertRegionPin).toHaveBeenCalledWith('u1', '11', 'ci-1');
     });
   });
 });
