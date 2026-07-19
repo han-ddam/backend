@@ -46,6 +46,7 @@ export const certifications = pgTable(
   },
   (t) => ({
     userIdx: index('cert_user_idx').on(t.userId),
+    userCreatedIdx: index('cert_user_created_idx').on(t.userId, t.createdAt),
   }),
 );
 

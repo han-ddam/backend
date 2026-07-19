@@ -17,3 +17,4 @@ export * from './collections';
 export * from './ratings';
 export * from './bookmarks';
 export * from './badges';
+export * from './representatives';
