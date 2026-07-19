@@ -2,7 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { CertificationsService } from './certifications.service';
 
 describe('CertificationsService', () => {
-  let repo: any, geo: any, storage: any, queue: any, id: any;
+  let repo: any, geo: any, storage: any, queue: any, id: any, scoring: any, badges: any;
   let service: CertificationsService;
 
   beforeEach(() => {
@@ -13,14 +13,17 @@ describe('CertificationsService', () => {
       createRejected: jest.fn(),
       getResult: jest.fn(),
       publicFeedForPlace: jest.fn(),
+      applyAccrual: jest.fn(),
     };
     geo = { isWithin: jest.fn(), distanceMeters: jest.fn() };
     storage = { save: jest.fn(), exists: jest.fn() };
     queue = { add: jest.fn() };
     let n = 0;
     id = { generate: jest.fn(() => `cert-${++n}`) };
+    scoring = { preview: jest.fn() };
+    badges = { evaluate: jest.fn() };
     const config = { get: () => 150 } as any; // PROXIMITY_TOLERANCE_M
-    service = new CertificationsService(repo, geo, storage, queue, id, config);
+    service = new CertificationsService(repo, geo, storage, queue, id, config, scoring, badges);
   });
 
   it('uploadPhoto stores the buffer and returns the key', async () => {
@@ -85,6 +88,21 @@ describe('CertificationsService', () => {
         deviceLat: 37.5, deviceLng: 127.0, visibility: 'PUBLIC',
       } as any)).rejects.toThrow('imageKey already used');
       expect(repo.createPending).not.toHaveBeenCalled();
+    });
+
+    it('submit: 0 images → VISIT, immediate ACCEPTED + accrual, no queue', async () => {
+      repo.placeCoords.mockResolvedValue({ lat: 37.5, lng: 127.0 });
+      geo.distanceMeters.mockResolvedValue(10);
+      geo.isWithin.mockResolvedValue(true);
+      id.generate.mockReturnValue('cert-v');
+      scoring.preview.mockResolvedValue({ action: 'CERT_PHOTO', basePoints: 10, typeWeight: 1, regionWeight: 1, rarityWeight: 1, eventMultiplier: 1, estimatedPoints: 10 });
+      repo.applyAccrual.mockResolvedValue({ awarded: true, weightedScore: 10 });
+      const out = await service.submit('u1', { placeId: 'p1', imageKeys: [], deviceLat: 37.5, deviceLng: 127.0, visibility: 'PUBLIC' } as any);
+      expect(out).toEqual({ certId: 'cert-v', status: 'ACCEPTED', proximityPass: true });
+      expect(repo.createPending).toHaveBeenCalledWith(expect.objectContaining({ images: [] }));
+      expect(repo.applyAccrual).toHaveBeenCalledWith(expect.objectContaining({ certId: 'cert-v', type: 'VISIT' }));
+      expect(queue.add).not.toHaveBeenCalled();
+      expect(badges.evaluate).toHaveBeenCalledWith('u1');
     });
   });
 

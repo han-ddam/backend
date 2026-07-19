@@ -42,12 +42,14 @@ export class CertificationsRepository {
         caption: p.caption ?? null, visibility: p.visibility,
         status: 'PENDING', proximityPass: true, proximityDistanceM: p.distanceM.toString(),
       });
-      await tx.insert(certificationImages).values(
-        p.images.map((im) => ({
-          id: this.id.generate(), certId: p.id, imageKey: im.imageKey,
-          seq: im.seq, isRepresentative: im.isRepresentative,
-        })),
-      );
+      if (p.images.length > 0) {
+        await tx.insert(certificationImages).values(
+          p.images.map((im) => ({
+            id: this.id.generate(), certId: p.id, imageKey: im.imageKey,
+            seq: im.seq, isRepresentative: im.isRepresentative,
+          })),
+        );
+      }
     });
   }
 
@@ -59,12 +61,14 @@ export class CertificationsRepository {
         status: 'REJECTED', proximityPass: false, proximityDistanceM: p.distanceM.toString(),
         rejectReason: p.reason,
       });
-      await tx.insert(certificationImages).values(
-        p.images.map((im) => ({
-          id: this.id.generate(), certId: p.id, imageKey: im.imageKey,
-          seq: im.seq, isRepresentative: im.isRepresentative,
-        })),
-      );
+      if (p.images.length > 0) {
+        await tx.insert(certificationImages).values(
+          p.images.map((im) => ({
+            id: this.id.generate(), certId: p.id, imageKey: im.imageKey,
+            seq: im.seq, isRepresentative: im.isRepresentative,
+          })),
+        );
+      }
     });
   }
 
