@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, inArray, lt, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import { IdService } from '@platform/id/id.service';
 import { ClockService } from '@platform/clock/clock.service';
@@ -127,6 +127,8 @@ export class CertificationsRepository {
     preview: ScorePreview;
   }): Promise<{ awarded: boolean; weightedScore: number }> {
     return this.db.transaction(async (tx) => {
+      // 동시 적립 직렬화: 같은 (user,place)의 첫수집/재방문 판정 레이스 방지(unique 제거 보완)
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${p.userId}), hashtext(${p.placeId}))`);
       const [prior] = await tx
         .select({ id: scoreEvents.id })
         .from(scoreEvents)
