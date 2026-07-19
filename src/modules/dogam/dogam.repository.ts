@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, inArray, lt, or, sql, type SQL } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import { decodeCursor } from '@platform/pagination/cursor';
-import { places, visits, regions, placeTrans, certifications, type localeEnum } from '@db/schema';
+import { places, visits, regions, placeTrans, certifications, certificationImages, type localeEnum } from '@db/schema';
 
 type Locale = (typeof localeEnum.enumValues)[number];
 
@@ -86,7 +86,7 @@ export class DogamRepository {
       .where(and(inArray(placeTrans.placeId, placeIds), inArray(placeTrans.locale, locales)));
   }
 
-  /** (user,place)별 최신 ACCEPTED 인증의 image_key. */
+  /** (user,place)별 최신 ACCEPTED 인증의 커버 image_key. */
   async certImagesFor(
     userId: string,
     placeIds: string[],
@@ -95,9 +95,13 @@ export class DogamRepository {
     return this.db
       .selectDistinctOn([certifications.placeId], {
         placeId: certifications.placeId,
-        imageKey: certifications.imageKey,
+        imageKey: certificationImages.imageKey,
       })
       .from(certifications)
+      .innerJoin(
+        certificationImages,
+        and(eq(certificationImages.certId, certifications.id), eq(certificationImages.isRepresentative, true)),
+      )
       .where(
         and(
           eq(certifications.userId, userId),

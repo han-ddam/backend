@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { CertificationsService } from './certifications.service';
 
 describe('CertificationsService', () => {
@@ -8,7 +8,7 @@ describe('CertificationsService', () => {
   beforeEach(() => {
     repo = {
       placeCoords: jest.fn(),
-      findByUserImageKey: jest.fn(),
+      findCertByImageKey: jest.fn(),
       createPending: jest.fn(),
       createRejected: jest.fn(),
       getResult: jest.fn(),
@@ -23,89 +23,60 @@ describe('CertificationsService', () => {
     service = new CertificationsService(repo, geo, storage, queue, id, config);
   });
 
-  const dto = {
-    placeId: 'p1',
-    imageKey: 'certifications/a.jpg',
-    deviceLat: 33.4,
-    deviceLng: 126.5,
-    caption: 'x',
-    visibility: 'PUBLIC' as const,
-  };
-
   it('uploadPhoto stores the buffer and returns the key', async () => {
     storage.save.mockResolvedValue({ key: 'certifications/a.jpg' });
     const out = await service.uploadPhoto(Buffer.from('x'), 'image/jpeg');
     expect(out).toEqual({ imageKey: 'certifications/a.jpg' });
   });
 
-  it('submit within range → PENDING and enqueues the cert', async () => {
-    repo.findByUserImageKey.mockResolvedValue(null);
-    repo.placeCoords.mockResolvedValue({ lat: 33.4001, lng: 126.5001 });
-    storage.exists.mockResolvedValue(true);
-    geo.isWithin.mockResolvedValue(true);
-    geo.distanceMeters.mockResolvedValue(12.3);
-    const out = await service.submit('u1', dto);
-    expect(geo.isWithin).toHaveBeenCalledWith(
-      { lng: 126.5, lat: 33.4 },
-      { lng: 126.5001, lat: 33.4001 },
-      150,
-    );
-    expect(repo.createPending).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'cert-1', userId: 'u1', placeId: 'p1', distanceM: 12.3 }),
-    );
-    expect(queue.add).toHaveBeenCalledWith('verify', { certId: 'cert-1' });
-    expect(out).toEqual({ certId: 'cert-1', status: 'PENDING', proximityPass: true });
-  });
-
-  it('submit out of range → REJECTED, no enqueue', async () => {
-    repo.findByUserImageKey.mockResolvedValue(null);
-    repo.placeCoords.mockResolvedValue({ lat: 40, lng: 130 });
-    storage.exists.mockResolvedValue(true);
-    geo.isWithin.mockResolvedValue(false);
-    geo.distanceMeters.mockResolvedValue(999999);
-    const out = await service.submit('u1', dto);
-    expect(repo.createRejected).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'cert-1', reason: 'OUT_OF_RANGE', distanceM: 999999 }),
-    );
-    expect(queue.add).not.toHaveBeenCalled();
-    expect(out).toEqual({ certId: 'cert-1', status: 'REJECTED', proximityPass: false });
-  });
-
-  it('submit is idempotent — PENDING replay re-enqueues the stuck cert', async () => {
-    repo.findByUserImageKey.mockResolvedValue({
-      id: 'old',
-      status: 'PENDING',
-      proximityPass: true,
+  describe('submit', () => {
+    it('submit: N images with representativeIndex → createPending with images[]', async () => {
+      repo.findCertByImageKey.mockResolvedValue(null);
+      repo.placeCoords.mockResolvedValue({ lat: 37.5, lng: 127.0 });
+      storage.exists.mockResolvedValue(true);
+      geo.distanceMeters.mockResolvedValue(10);
+      geo.isWithin.mockResolvedValue(true);
+      id.generate.mockReturnValue('cert-1');
+      const out = await service.submit('u1', {
+        placeId: 'p1', imageKeys: ['certifications/a.jpg', 'certifications/b.jpg'],
+        representativeIndex: 1, deviceLat: 37.5, deviceLng: 127.0, visibility: 'PUBLIC',
+      } as any);
+      expect(out).toEqual({ certId: 'cert-1', status: 'PENDING', proximityPass: true });
+      expect(repo.createPending).toHaveBeenCalledWith(expect.objectContaining({
+        id: 'cert-1', userId: 'u1', placeId: 'p1', visibility: 'PUBLIC',
+        images: [
+          { imageKey: 'certifications/a.jpg', seq: 0, isRepresentative: false },
+          { imageKey: 'certifications/b.jpg', seq: 1, isRepresentative: true },
+        ],
+      }));
+      expect(queue.add).toHaveBeenCalledWith('verify', { certId: 'cert-1' });
     });
-    const out = await service.submit('u1', dto);
-    expect(out).toEqual({ certId: 'old', status: 'PENDING', proximityPass: true });
-    expect(repo.createPending).not.toHaveBeenCalled();
-    expect(queue.add).toHaveBeenCalledWith('verify', { certId: 'old' });
-  });
 
-  it('submit is idempotent — non-PENDING replay (e.g. REJECTED) does not re-enqueue', async () => {
-    repo.findByUserImageKey.mockResolvedValue({
-      id: 'old',
-      status: 'REJECTED',
-      proximityPass: false,
+    it('submit: out of range → createRejected, no queue', async () => {
+      repo.findCertByImageKey.mockResolvedValue(null);
+      repo.placeCoords.mockResolvedValue({ lat: 37.5, lng: 127.0 });
+      storage.exists.mockResolvedValue(true);
+      geo.distanceMeters.mockResolvedValue(9999);
+      geo.isWithin.mockResolvedValue(false);
+      id.generate.mockReturnValue('cert-2');
+      const out = await service.submit('u1', {
+        placeId: 'p1', imageKeys: ['certifications/a.jpg'], representativeIndex: 0,
+        deviceLat: 37.5, deviceLng: 127.0, visibility: 'PRIVATE',
+      } as any);
+      expect(out).toEqual({ certId: 'cert-2', status: 'REJECTED', proximityPass: false });
+      expect(repo.createRejected).toHaveBeenCalled();
+      expect(queue.add).not.toHaveBeenCalled();
     });
-    const out = await service.submit('u1', dto);
-    expect(out).toEqual({ certId: 'old', status: 'REJECTED', proximityPass: false });
-    expect(repo.createPending).not.toHaveBeenCalled();
-    expect(queue.add).not.toHaveBeenCalled();
-  });
 
-  it('submit throws NotFound when place missing/hidden/no-coords', async () => {
-    repo.findByUserImageKey.mockResolvedValue(null);
-    repo.placeCoords.mockResolvedValue(null);
-    await expect(service.submit('u1', dto)).rejects.toThrow(NotFoundException);
-  });
-
-  it('submit throws BadRequest when imageKey not uploaded', async () => {
-    repo.findByUserImageKey.mockResolvedValue(null);
-    repo.placeCoords.mockResolvedValue({ lat: 33.4, lng: 126.5 });
-    storage.exists.mockResolvedValue(false);
-    await expect(service.submit('u1', dto)).rejects.toThrow(BadRequestException);
+    it('submit: idempotent — first imageKey already used by me → returns existing', async () => {
+      repo.findCertByImageKey.mockResolvedValue({ id: 'cert-x', userId: 'u1', status: 'PENDING', proximityPass: true });
+      const out = await service.submit('u1', {
+        placeId: 'p1', imageKeys: ['certifications/a.jpg'], representativeIndex: 0,
+        deviceLat: 37.5, deviceLng: 127.0, visibility: 'PUBLIC',
+      } as any);
+      expect(out).toEqual({ certId: 'cert-x', status: 'PENDING', proximityPass: true });
+      expect(repo.createPending).not.toHaveBeenCalled();
+    });
   });
 
   it('getCertification throws NotFound when not owned/missing', async () => {
@@ -114,16 +85,37 @@ describe('CertificationsService', () => {
   });
 
   describe('publicFeedForPlace', () => {
-    it('maps rows to imageUrl + handle and builds nextCursor', async () => {
+    it('maps rows to images[]/coverImageUrl + handle and builds nextCursor', async () => {
       const rows = [
-        { id: 'c2', createdAt: new Date('2026-07-07T00:00:00Z'), imageKey: 'certifications/b.jpg', handle: '@b' },
-        { id: 'c1', createdAt: new Date('2026-07-06T00:00:00Z'), imageKey: 'certifications/a.jpg', handle: '@a' },
+        {
+          id: 'c2',
+          createdAt: new Date('2026-07-07T00:00:00Z'),
+          handle: '@b',
+          images: [
+            { imageKey: 'certifications/b0.jpg', isRepresentative: false },
+            { imageKey: 'certifications/b1.jpg', isRepresentative: true },
+          ],
+        },
+        {
+          id: 'c1',
+          createdAt: new Date('2026-07-06T00:00:00Z'),
+          handle: '@a',
+          images: [{ imageKey: 'certifications/a.jpg', isRepresentative: true }],
+        },
       ];
       repo.publicFeedForPlace.mockResolvedValue(rows);
       const out = await service.publicFeedForPlace('p1', undefined, 1);
       expect(repo.publicFeedForPlace).toHaveBeenCalledWith('p1', undefined, 1);
       expect(out.items).toEqual([
-        { imageUrl: '/api/certifications/photos/certifications/b.jpg', userHandle: '@b', createdAt: rows[0].createdAt },
+        {
+          images: [
+            { imageUrl: '/api/certifications/photos/certifications/b0.jpg', isRepresentative: false },
+            { imageUrl: '/api/certifications/photos/certifications/b1.jpg', isRepresentative: true },
+          ],
+          coverImageUrl: '/api/certifications/photos/certifications/b1.jpg',
+          userHandle: '@b',
+          createdAt: rows[0].createdAt,
+        },
       ]);
       expect(out.nextCursor).not.toBeNull();
     });

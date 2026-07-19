@@ -24,10 +24,11 @@ export class CertificationsProcessor extends WorkerHost {
     const cert = await this.repo.findById(job.data.certId);
     if (!cert || cert.status !== 'PENDING' || cert.scoredAt) return; // 멱등
 
+    const coverKey = await this.repo.coverImageKey(cert.id);
     const result = await this.verifier.verify({
       id: cert.id,
       placeId: cert.placeId,
-      imageKey: cert.imageKey,
+      imageKey: coverKey ?? '',
     });
     if (!result.pass) {
       await this.repo.reject(cert.id, result.reason ?? 'VERIFICATION_FAILED');

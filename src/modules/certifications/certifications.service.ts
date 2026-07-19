@@ -36,23 +36,17 @@ export class CertificationsService {
   }
 
   async submit(userId: string, dto: SubmitCertificationDto): Promise<SubmitResult> {
-    // 멱등: 같은 (user,imageKey)면 기존 결과 반환
-    const existing = await this.repo.findByUserImageKey(userId, dto.imageKey);
+    // 멱등/중복: 첫 imageKey가 이미 어떤 cert에 쓰였으면 그 결과 반환
+    const existing = await this.repo.findCertByImageKey(dto.imageKeys[0]);
     if (existing) {
-      if (existing.status === 'PENDING') {
-        // enqueue 실패 후 재시도로 PENDING에 멈춘 케이스 복구 — 프로세서가 상태를 가드하므로 중복 enqueue는 안전
-        await this.queue.add('verify', { certId: existing.id });
-      }
-      return {
-        certId: existing.id,
-        status: existing.status as SubmitResult['status'],
-        proximityPass: existing.proximityPass,
-      };
+      if (existing.userId !== userId) throw new BadRequestException('imageKey already used');
+      if (existing.status === 'PENDING') await this.queue.add('verify', { certId: existing.id });
+      return { certId: existing.id, status: existing.status as SubmitResult['status'], proximityPass: existing.proximityPass };
     }
     const coords = await this.repo.placeCoords(dto.placeId);
     if (!coords) throw new NotFoundException('Place not found');
-    if (!(await this.storage.exists(dto.imageKey))) {
-      throw new BadRequestException('imageKey not found');
+    for (const key of dto.imageKeys) {
+      if (!(await this.storage.exists(key))) throw new BadRequestException('imageKey not found');
     }
 
     const device = { lng: dto.deviceLng, lat: dto.deviceLat };
@@ -62,15 +56,8 @@ export class CertificationsService {
     const within = await this.geo.isWithin(device, target, radius);
 
     const certId = this.id.generate();
-    const base = {
-      id: certId,
-      userId,
-      placeId: dto.placeId,
-      imageKey: dto.imageKey,
-      caption: dto.caption,
-      visibility: dto.visibility,
-      distanceM,
-    };
+    const images = dto.imageKeys.map((imageKey, i) => ({ imageKey, seq: i, isRepresentative: i === dto.representativeIndex }));
+    const base = { id: certId, userId, placeId: dto.placeId, caption: dto.caption, visibility: dto.visibility, distanceM, images };
     if (!within) {
       await this.repo.createRejected({ ...base, reason: 'OUT_OF_RANGE' });
       return { certId, status: 'REJECTED', proximityPass: false };
@@ -105,16 +92,16 @@ export class CertificationsService {
     placeId: string,
     cursor: string | undefined,
     limit: number,
-  ): Promise<{ items: { imageUrl: string; userHandle: string; createdAt: Date }[]; nextCursor: string | null }> {
+  ): Promise<{ items: { images: { imageUrl: string; isRepresentative: boolean }[]; coverImageUrl: string | null; userHandle: string; createdAt: Date }[]; nextCursor: string | null }> {
     const lim = Math.min(Math.max(limit, 1), 50);
     const rows = await this.repo.publicFeedForPlace(placeId, cursor, lim);
     const page = buildCursorPage(rows, lim);
     return {
-      items: page.items.map((r) => ({
-        imageUrl: `/api/certifications/photos/${r.imageKey}`,
-        userHandle: r.handle,
-        createdAt: r.createdAt,
-      })),
+      items: page.items.map((r) => {
+        const images = r.images.map((im) => ({ imageUrl: `/api/certifications/photos/${im.imageKey}`, isRepresentative: im.isRepresentative }));
+        const cover = images.find((i) => i.isRepresentative) ?? images[0] ?? null;
+        return { images, coverImageUrl: cover?.imageUrl ?? null, userHandle: r.handle, createdAt: r.createdAt };
+      }),
       nextCursor: page.nextCursor,
     };
   }
