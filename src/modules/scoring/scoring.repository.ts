@@ -1,12 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, sql } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
-import { places, regions, scoreRules, regionWeights } from '@db/schema';
+import { places, regions, scoreRules, regionWeights, scoreWeightConfigs } from '@db/schema';
 
 export interface PlaceScoreRow {
   basePoints: number;
   rarityWeight: string; // numeric → string
   provinceCode: string;
+  visitWeight: string;
+  photoWeight: string;
 }
 
 @Injectable()
@@ -20,9 +22,12 @@ export class ScoringRepository {
         basePoints: places.basePoints,
         rarityWeight: places.rarityWeight,
         provinceCode: sql<string>`coalesce(${regions.parentCode}, ${regions.code})`,
+        visitWeight: sql<string>`coalesce(${scoreWeightConfigs.visitWeight}, 1.0)`,
+        photoWeight: sql<string>`coalesce(${scoreWeightConfigs.photoWeight}, 1.0)`,
       })
       .from(places)
       .innerJoin(regions, eq(regions.code, places.regionCode))
+      .leftJoin(scoreWeightConfigs, eq(scoreWeightConfigs.id, places.weightConfigId))
       .where(and(eq(places.id, placeId), eq(places.status, 'ACTIVE')));
     return row ?? null;
   }

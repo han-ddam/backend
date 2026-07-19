@@ -35,7 +35,7 @@ export class CertificationsProcessor extends WorkerHost {
       return;
     }
 
-    const preview = await this.scoring.preview(cert.placeId);
+    const preview = await this.scoring.preview(cert.placeId, 'PHOTO');
     const accrual = await this.repo.applyAccrual({
       certId: cert.id,
       userId: cert.userId,

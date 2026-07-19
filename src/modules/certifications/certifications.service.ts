@@ -73,7 +73,7 @@ export class CertificationsService {
     await this.repo.createPending(base);
     if (dto.imageKeys.length === 0) {
       // 방문(0장): 검증 없이 즉시 적립
-      const preview = await this.scoring.preview(dto.placeId);
+      const preview = await this.scoring.preview(dto.placeId, 'VISIT');
       const accrual = await this.repo.applyAccrual({ certId, userId, placeId: dto.placeId, type: 'VISIT', preview });
       if (accrual.awarded) {
         try { await this.badges.evaluate(userId); } catch (e) { this.logger.warn(`badge evaluate failed for ${userId}: ${e}`); }
