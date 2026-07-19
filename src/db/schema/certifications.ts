@@ -6,7 +6,6 @@ import {
   boolean,
   numeric,
   timestamp,
-  unique,
   index,
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
@@ -36,7 +35,6 @@ export const certifications = pgTable(
     placeId: uuid('place_id')
       .notNull()
       .references(() => places.id, { onDelete: 'cascade' }),
-    imageKey: text('image_key').notNull(), // StoragePort가 반환한 키
     caption: text('caption'),
     visibility: certVisibilityEnum('visibility').notNull().default('PRIVATE'),
     status: certStatusEnum('status').notNull().default('PENDING'),
@@ -47,7 +45,6 @@ export const certifications = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
   },
   (t) => ({
-    userImageUq: unique('cert_user_image_uq').on(t.userId, t.imageKey),
     userIdx: index('cert_user_idx').on(t.userId),
   }),
 );

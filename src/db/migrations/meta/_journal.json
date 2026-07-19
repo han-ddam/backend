@@ -162,6 +162,13 @@
       "when": 1784031132821,
       "tag": "0022_tidy_bug",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784474691953,
+      "tag": "0023_broken_vision",
+      "breakpoints": true
     }
   ]
 }

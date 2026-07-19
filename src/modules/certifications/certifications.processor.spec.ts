@@ -5,7 +5,7 @@ describe('CertificationsProcessor', () => {
   let proc: CertificationsProcessor;
 
   beforeEach(() => {
-    repo = { findById: jest.fn(), reject: jest.fn(), applyAccrual: jest.fn() };
+    repo = { findById: jest.fn(), reject: jest.fn(), applyAccrual: jest.fn(), coverImageKey: jest.fn() };
     verifier = { verify: jest.fn() };
     scoring = { preview: jest.fn() };
     badges = { evaluate: jest.fn() };

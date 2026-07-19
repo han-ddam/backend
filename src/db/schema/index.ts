@@ -10,6 +10,7 @@ export * from './agreements';
 export * from './visits';
 export * from './scoring';
 export * from './certifications';
+export * from './certification-images';
 export * from './score-events';
 export * from './compositions';
 export * from './collections';
