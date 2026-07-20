@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, isNotNull, lt, or, sql } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import { decodeCursor } from '@platform/pagination/cursor';
-import { placeRatings, places, users } from '@db/schema';
+import { placeRatings, places, users, visits } from '@db/schema';
 
 @Injectable()
 export class RatingsRepository {
@@ -13,6 +13,14 @@ export class RatingsRepository {
       .select({ id: places.id })
       .from(places)
       .where(and(eq(places.id, placeId), eq(places.status, 'ACTIVE')));
+    return !!row;
+  }
+
+  async hasVisit(userId: string, placeId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: visits.id })
+      .from(visits)
+      .where(and(eq(visits.userId, userId), eq(visits.placeId, placeId)));
     return !!row;
   }
 
