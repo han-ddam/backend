@@ -74,7 +74,10 @@ export class CertificationsService {
       await this.repo.createRejected({ ...base, reason: 'OUT_OF_RANGE' });
       return { certId, status: 'REJECTED', proximityPass: false };
     }
-    await this.repo.createPending(base);
+    const created = await this.repo.createPendingGuarded(base, COOLDOWN_DAYS);
+    if (created === 'COOLDOWN') {
+      throw new ConflictException('재인증은 마지막 인증 후 7일 경과 후 가능합니다');
+    }
     if (dto.imageKeys.length === 0) {
       // 방문(0장): 검증 없이 즉시 적립
       const preview = await this.scoring.preview(dto.placeId, 'VISIT');
