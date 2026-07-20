@@ -6,7 +6,7 @@
     <text x="16" y="52" fill="#64748b" font-weight="700">[ 공개 ]</text>
     <text x="16" y="74"><tspan fill="#047857">GET</tspan>    /places/:id/compositions   (locale 헤더)</text>
     <text x="16" y="92">    →  { items[{ seq, title, description, exampleImageUrl, source }], <tspan fill="#b45309">generating</tspan> }</text>
-    <text x="16" y="110" fill="#b45309">    ※ 구도 없으면 Lazy AI(Gemini) 생성 예약 → 첫 조회 items:[] · generating:true</text>
+    <text x="16" y="110" fill="#b45309">    ※ source=CURATED|AI · 구도 없으면 Lazy AI(Gemini) 생성 예약 → 첫 조회 items:[] · generating:true</text>
     <text x="16" y="128" fill="#2563eb">    ※ FE: generating:true면 "구도 가이드 생성 중..." 표시하고 3~5초 뒤 재조회(refetch)</text>
     <text x="16" y="154"><tspan fill="#047857">GET</tspan>    /places/compositions/photos/:key   (예시 이미지 서빙, 공개)</text>
 
