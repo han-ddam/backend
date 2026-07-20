@@ -70,7 +70,22 @@ describe('CompositionsService', () => {
       generator.enabled = true;
       const out = await service.forPlace('p1', 'KO');
       expect(out).toEqual([]);
-      expect(queue.add).toHaveBeenCalledWith('gen', { placeId: 'p1' }, { jobId: 'p1' });
+      expect(queue.add).toHaveBeenCalledWith(
+        'gen',
+        { placeId: 'p1' },
+        expect.objectContaining({ jobId: 'p1', removeOnFail: true }),
+      );
+    });
+
+    it('forPlace: queue.add rejects → does not throw, still returns rows', async () => {
+      repo.placeActive.mockResolvedValue(true);
+      repo.listForPlace.mockResolvedValue([]);
+      repo.transForCompositions.mockResolvedValue([]);
+      repo.generatedAt.mockResolvedValue(null);
+      generator.enabled = true;
+      queue.add.mockRejectedValue(new Error('redis'));
+      const out = await service.forPlace('p1', 'KO');
+      expect(out).toEqual([]);
     });
 
     it('forPlace: has compositions → no enqueue', async () => {

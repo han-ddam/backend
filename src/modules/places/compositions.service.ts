@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { localeEnum } from '@db/schema'; // 값으로도 사용 (enumValues)
@@ -27,6 +27,8 @@ export interface AdminCompositionItem {
 
 @Injectable()
 export class CompositionsService {
+  private readonly logger = new Logger(CompositionsService.name);
+
   constructor(
     private readonly repo: CompositionsRepository,
     @Inject(STORAGE) private readonly storage: StoragePort,
@@ -48,7 +50,21 @@ export class CompositionsService {
     if (rows.length === 0 && this.generator.enabled) {
       const gen = await this.repo.generatedAt(placeId);
       if (gen === null) {
-        await this.queue.add('gen', { placeId }, { jobId: placeId });
+        try {
+          await this.queue.add(
+            'gen',
+            { placeId },
+            {
+              jobId: placeId,
+              removeOnComplete: true,
+              removeOnFail: true,
+              attempts: 2,
+              backoff: { type: 'exponential', delay: 3000 },
+            },
+          );
+        } catch (e) {
+          this.logger.warn(`composition enqueue failed for ${placeId}: ${e}`);
+        }
       }
     }
     return rows.map((r) => {

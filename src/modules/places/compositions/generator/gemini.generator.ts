@@ -52,7 +52,8 @@ export class GeminiGenerator implements CompositionGeneratorPort {
         lastErr = e;
         const status = e?.status ?? e?.response?.status;
         if (status === 429 || (status >= 500 && status < 600)) {
-          await this.sleep(2000 * 2 ** attempt); // 2s,4s,8s
+          this.logger.warn(`generation attempt ${attempt + 1} failed (status ${status}): ${e}`);
+          if (attempt < 2) await this.sleep(2000 * 2 ** attempt); // 2s,4s
           continue;
         }
         throw e;
