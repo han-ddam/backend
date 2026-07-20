@@ -1,22 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 332" font-family="sans-serif">
-  <rect width="940" height="332" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 352" font-family="sans-serif">
+  <rect width="940" height="352" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
   <path d="M0,6 a6,6 0 0 1 6,-6 h928 a6,6 0 0 1 6,6 v26 h-940 z" fill="#10b981"/>
   <text x="16" y="22" fill="#fff" font-size="14" font-weight="700">촬영 구도 가이드 (composition) — DTO</text>
   <g font-family="monospace" font-size="12" fill="#0f172a">
     <text x="16" y="52" fill="#64748b" font-weight="700">[ 공개 ]</text>
     <text x="16" y="74"><tspan fill="#047857">GET</tspan>    /places/:id/compositions   (locale 헤더)</text>
-    <text x="16" y="92">    →  [ { seq, title, description, exampleImageUrl, source } ]</text>
-    <text x="16" y="110" fill="#b45309">    ※ source=CURATED|AI · 구도 없으면 Lazy AI(Gemini) 생성 예약 → 첫 조회 빈배열 [] → 수초 후 채워짐</text>
-    <text x="16" y="136"><tspan fill="#047857">GET</tspan>    /places/compositions/photos/:key   (예시 이미지 서빙, 공개)</text>
+    <text x="16" y="92">    →  { items[{ seq, title, description, exampleImageUrl, source }], <tspan fill="#b45309">generating</tspan> }</text>
+    <text x="16" y="110" fill="#b45309">    ※ source=CURATED|AI · 구도 없으면 Lazy AI(Gemini) 생성 예약 → 첫 조회 items:[] · generating:true</text>
+    <text x="16" y="128" fill="#2563eb">    ※ FE: generating:true면 "구도 가이드 생성 중..." 표시하고 3~5초 뒤 재조회(refetch)</text>
+    <text x="16" y="154"><tspan fill="#047857">GET</tspan>    /places/compositions/photos/:key   (예시 이미지 서빙, 공개)</text>
 
-    <text x="16" y="166" fill="#64748b" font-weight="700">[ 어드민 ]  AdminJwt + Roles(SUPER_ADMIN|ADMIN)</text>
-    <text x="16" y="188"><tspan fill="#b45309">POST</tspan>   /admin/places/:id/compositions/photos   (예시 이미지 업로드)  →  { key }</text>
-    <text x="16" y="206"><tspan fill="#b45309">POST</tspan>   /admin/places/:id/compositions   { seq, source?, imageKey?, translations[{locale,title,description}] }</text>
-    <text x="16" y="224"><tspan fill="#047857">GET</tspan>    /admin/places/:id/compositions   →  [ { id, seq, source, exampleImageUrl, translations[] } ]</text>
-    <text x="16" y="242"><tspan fill="#b91c1c">DELETE</tspan> /admin/compositions/:compositionId</text>
-    <text x="16" y="264"><tspan fill="#b45309">POST</tspan>   /admin/compositions/import   (CSV: region_code,place_name,seq,title,description · place당 교체)</text>
-    <text x="16" y="282">    →  { placesUpdated, imported, skipped[{ line, reason }] }</text>
+    <text x="16" y="184" fill="#64748b" font-weight="700">[ 어드민 ]  AdminJwt + Roles(SUPER_ADMIN|ADMIN)</text>
+    <text x="16" y="206"><tspan fill="#b45309">POST</tspan>   /admin/places/:id/compositions/photos   (예시 이미지 업로드)  →  { key }</text>
+    <text x="16" y="224"><tspan fill="#b45309">POST</tspan>   /admin/places/:id/compositions   { seq, source?, imageKey?, translations[{locale,title,description}] }</text>
+    <text x="16" y="242"><tspan fill="#047857">GET</tspan>    /admin/places/:id/compositions   →  [ { id, seq, source, exampleImageUrl, translations[] } ]</text>
+    <text x="16" y="260"><tspan fill="#b91c1c">DELETE</tspan> /admin/compositions/:compositionId</text>
+    <text x="16" y="282"><tspan fill="#b45309">POST</tspan>   /admin/compositions/import   (CSV: region_code,place_name,seq,title,description · place당 교체)</text>
+    <text x="16" y="300">    →  { placesUpdated, imported, skipped[{ line, reason }] }</text>
 
-    <text x="16" y="312" fill="#64748b">※ 후속: grounding(구글 검색) + 출처 필드(source_ref) 추가 시 항목마다 출처(예: Trip.com) 표시</text>
+    <text x="16" y="332" fill="#64748b">※ 후속: grounding(구글 검색) + 출처 필드(source_ref) 추가 시 항목마다 출처(예: Trip.com) 표시</text>
   </g>
 </svg>

@@ -39,7 +39,7 @@ export class CompositionsService {
   ) {}
 
   /** 공개 조회 — seq순, locale/KO 폴백, imageUrl 조립. */
-  async forPlace(placeId: string, locale: Locale): Promise<CompositionItem[]> {
+  async forPlace(placeId: string, locale: Locale): Promise<{ items: CompositionItem[]; generating: boolean }> {
     if (!(await this.repo.placeActive(placeId))) {
       throw new NotFoundException('Place not found');
     }
@@ -48,27 +48,7 @@ export class CompositionsService {
       rows.map((r) => r.id),
       [locale, 'KO'],
     );
-    if (rows.length === 0 && this.generator.enabled) {
-      const gen = await this.repo.generatedAt(placeId);
-      if (gen === null) {
-        try {
-          await this.queue.add(
-            'gen',
-            { placeId },
-            {
-              jobId: placeId,
-              removeOnComplete: true,
-              removeOnFail: true,
-              attempts: 2,
-              backoff: { type: 'exponential', delay: 3000 },
-            },
-          );
-        } catch (e) {
-          this.logger.warn(`composition enqueue failed for ${placeId}: ${e}`);
-        }
-      }
-    }
-    return rows.map((r) => {
+    const items = rows.map((r) => {
       const t = this.pickTrans(trans.filter((x) => x.compositionId === r.id), locale);
       return {
         seq: r.seq,
@@ -80,6 +60,23 @@ export class CompositionsService {
         source: r.source,
       };
     });
+    let generating = false;
+    if (rows.length === 0 && this.generator.enabled) {
+      const gen = await this.repo.generatedAt(placeId);
+      if (gen === null) {
+        generating = true;
+        try {
+          await this.queue.add(
+            'gen',
+            { placeId },
+            { jobId: placeId, removeOnComplete: true, removeOnFail: true, attempts: 2, backoff: { type: 'exponential', delay: 3000 } },
+          );
+        } catch (e) {
+          this.logger.warn(`composition enqueue failed for ${placeId}: ${e}`);
+        }
+      }
+    }
+    return { items, generating };
   }
 
   private pickTrans(
