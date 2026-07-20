@@ -1,14 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 220" font-family="sans-serif">
-  <rect width="820" height="220" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
-  <path d="M0,6 a6,6 0 0 1 6,-6 h808 a6,6 0 0 1 6,6 v26 h-820 z" fill="#10b981"/>
-  <text x="16" y="22" fill="#fff" font-size="14" font-weight="700">여행 도감 — DTO</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 258" font-family="sans-serif">
+  <rect width="860" height="258" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <path d="M0,6 a6,6 0 0 1 6,-6 h848 a6,6 0 0 1 6,6 v26 h-860 z" fill="#10b981"/>
+  <text x="16" y="22" fill="#fff" font-size="14" font-weight="700">여행 도감 목록 — DTO</text>
   <g font-family="monospace" font-size="12" fill="#0f172a">
     <text x="16" y="54" fill="#64748b">헤더 수집률(63%)은 <tspan fill="#0f172a">GET /me/summary</tspan> 의 progress 재사용 (홈과 공유)</text>
     <text x="16" y="82"><tspan fill="#047857">GET</tspan> /me/dogam/regions   (지역별 → 잠금)</text>
-    <text x="16" y="102">    →  [ { provinceCode, name, percent, collected, total, locked } ]</text>
+    <text x="16" y="102">    →  [ { sidoCode, name, percent, collected, total, locked, <tspan fill="#b45309">imageUrl</tspan> } ]</text>
     <text x="16" y="130"><tspan fill="#047857">GET</tspan> /me/dogam/themes?cursor=&amp;limit=   (테마/컬렉션)</text>
     <text x="16" y="150">    →  { items[{ collectionId, title, filled, total, thumbnails[] }], nextCursor }</text>
     <text x="16" y="178"><tspan fill="#047857">GET</tspan> /me/dogam/recent?cursor=&amp;limit=   (최근 수집)</text>
     <text x="16" y="198">    →  { items[{ placeId, name, imageUrl, collectedAt }], nextCursor }</text>
+    <text x="16" y="230" fill="#b45309">※ 썸네일(imageUrl · thumbnails[]) = 내 대표사진(핀→커버→오피셜), 비로그인은 오피셜</text>
+    <text x="16" y="248" fill="#64748b">   지역 카드 imageUrl(신규) = 그 지역 내 최근 수집 커버 → 오피셜 지역 커버 폴백</text>
   </g>
 </svg>

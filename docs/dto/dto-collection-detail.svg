@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 210" font-family="sans-serif">
+  <rect width="860" height="210" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <path d="M0,6 a6,6 0 0 1 6,-6 h848 a6,6 0 0 1 6,6 v26 h-860 z" fill="#10b981"/>
+  <text x="16" y="22" fill="#fff" font-size="14" font-weight="700">테마 도감 상세 (컬렉션) — DTO · 도감 detail(uuid)</text>
+  <g font-family="monospace" font-size="12" fill="#0f172a">
+    <text x="16" y="54" fill="#64748b">도감 목록(테마 카드) 클릭 → 그 테마 상세. id = collection UUID. OptionalJwt(비로그인 조회 가능)</text>
+    <text x="16" y="82"><tspan fill="#047857">GET</tspan> /collections/:id?cursor=&amp;limit=   (id = uuid)</text>
+    <text x="16" y="102">    →  { title,</text>
+    <text x="16" y="120">         counts{ all, visited },</text>
+    <text x="16" y="138">         items[{ placeId, seq, <tspan fill="#b45309">imageUrl</tspan>, visitStatus }],   (seq 커서)</text>
+    <text x="16" y="156">         nextCursor }</text>
+    <text x="16" y="186" fill="#b45309">※ imageUrl = 내 대표사진(핀→커버) → 오피셜 폴백, 비로그인은 오피셜</text>
+    <text x="16" y="202" fill="#64748b">   visitStatus 2-state(VISITED|NONE) — 테마는 찜/PLANNED 미적용(후속)</text>
+  </g>
+</svg>
