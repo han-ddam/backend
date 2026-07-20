@@ -5,6 +5,7 @@ describe('PlacesService', () => {
   let repo: any;
   let id: any;
   let ratings: any;
+  let weightConfigs: any;
   let service: PlacesService;
 
   beforeEach(() => {
@@ -19,11 +20,13 @@ describe('PlacesService', () => {
       nearbyPlaces: jest.fn(),
       setStatus: jest.fn(),
       userPlaceFlags: jest.fn(),
+      setWeightConfig: jest.fn(),
     };
     let seq = 0;
     id = { generate: jest.fn(() => `id-${++seq}`) };
     ratings = { aggregateFor: jest.fn().mockResolvedValue({ average: null, count: 0, myScore: null, reviewCount: 0 }) };
-    service = new PlacesService(repo, id, ratings);
+    weightConfigs = { exists: jest.fn() };
+    service = new PlacesService(repo, id, ratings, weightConfigs);
   });
 
   describe('createPlace', () => {
@@ -224,6 +227,37 @@ describe('PlacesService', () => {
       await expect(service.setPlaceStatus('nope', 'HIDDEN')).rejects.toThrow(
         'Place not found',
       );
+    });
+  });
+
+  describe('adminSetWeightConfig', () => {
+    it('assigns a config after checking it exists', async () => {
+      weightConfigs.exists.mockResolvedValue(true);
+      repo.setWeightConfig.mockResolvedValue(true);
+      const out = await service.adminSetWeightConfig('p1', 'cfg-1');
+      expect(weightConfigs.exists).toHaveBeenCalledWith('cfg-1');
+      expect(repo.setWeightConfig).toHaveBeenCalledWith('p1', 'cfg-1');
+      expect(out).toEqual({ updated: true });
+    });
+
+    it('unassigns without checking existence when configId is null', async () => {
+      repo.setWeightConfig.mockResolvedValue(true);
+      const out = await service.adminSetWeightConfig('p1', null);
+      expect(weightConfigs.exists).not.toHaveBeenCalled();
+      expect(repo.setWeightConfig).toHaveBeenCalledWith('p1', null);
+      expect(out).toEqual({ updated: true });
+    });
+
+    it('throws NotFound when configId does not exist', async () => {
+      weightConfigs.exists.mockResolvedValue(false);
+      await expect(service.adminSetWeightConfig('p1', 'nope')).rejects.toThrow(NotFoundException);
+      expect(repo.setWeightConfig).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFound when place does not exist', async () => {
+      weightConfigs.exists.mockResolvedValue(true);
+      repo.setWeightConfig.mockResolvedValue(false);
+      await expect(service.adminSetWeightConfig('nope', 'cfg-1')).rejects.toThrow('Place not found');
     });
   });
 
