@@ -12,6 +12,8 @@ describe('CompositionsService', () => {
       create: jest.fn(),
       deleteById: jest.fn(),
       generatedAt: jest.fn(),
+      resolvePlaceByRegionName: jest.fn(),
+      replaceForPlace: jest.fn(),
     };
     storage = { save: jest.fn() };
     let n = 0;
@@ -174,6 +176,26 @@ describe('CompositionsService', () => {
     it('adminDelete throws NotFound when composition missing', async () => {
       repo.deleteById.mockResolvedValue(false);
       await expect(service.adminDelete('nope')).rejects.toThrow('Composition not found');
+    });
+  });
+
+  describe('importCsv', () => {
+    const csv = (s: string) => Buffer.from(s, 'utf-8');
+    it('resolves + replaces per place, reports skips', async () => {
+      repo.resolvePlaceByRegionName.mockImplementation(async (rc: string, n: string) => (n === '남산' ? 'p1' : null));
+      const out = await service.importCsv(csv(
+        'region_code,place_name,seq,title,description\n' +
+        '11110,남산,0,t1,d1\n' +
+        '11110,남산,1,t2,d2\n' +
+        '99999,없는곳,0,x,y\n',
+      ));
+      expect(repo.replaceForPlace).toHaveBeenCalledWith('p1', [
+        { seq: 0, title: 't1', description: 'd1' },
+        { seq: 1, title: 't2', description: 'd2' },
+      ], 'CURATED');
+      expect(out.placesUpdated).toBe(1);
+      expect(out.imported).toBe(2);
+      expect(out.skipped).toEqual([{ line: 4, reason: 'place not found: 99999/없는곳' }]);
     });
   });
 });

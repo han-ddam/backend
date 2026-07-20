@@ -6,6 +6,7 @@ import { IdService } from '@platform/id/id.service';
 import { STORAGE, type StoragePort } from '@platform/storage/storage.port';
 import { CompositionsRepository } from './compositions.repository';
 import { GENERATOR, type CompositionGeneratorPort } from './compositions/generator/generator.port';
+import { parseCsv } from './compositions.csv';
 
 type Locale = (typeof localeEnum.enumValues)[number];
 
@@ -148,5 +149,38 @@ export class CompositionsService {
   async adminDelete(compositionId: string): Promise<void> {
     const ok = await this.repo.deleteById(compositionId);
     if (!ok) throw new NotFoundException('Composition not found');
+  }
+
+  async importCsv(
+    buffer: Buffer,
+  ): Promise<{ placesUpdated: number; imported: number; skipped: { line: number; reason: string }[] }> {
+    const rows = parseCsv(buffer.toString('utf-8'));
+    const skipped: { line: number; reason: string }[] = [];
+    if (rows.length < 2) return { placesUpdated: 0, imported: 0, skipped };
+    const h = rows[0].map((x) => x.toLowerCase());
+    const col = { region: h.indexOf('region_code'), name: h.indexOf('place_name'), seq: h.indexOf('seq'), title: h.indexOf('title'), desc: h.indexOf('description') };
+    if (col.region < 0 || col.name < 0 || col.title < 0) {
+      throw new BadRequestException('CSV header requires region_code, place_name, title');
+    }
+    // (region|name) 그룹핑
+    const groups = new Map<string, { regionCode: string; name: string; firstLine: number; items: { seq: number; title: string; description: string | null }[] }>();
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      const regionCode = r[col.region] ?? '', name = r[col.name] ?? '', title = r[col.title] ?? '';
+      if (!regionCode || !name || !title) { skipped.push({ line: i + 1, reason: 'missing region_code/place_name/title' }); continue; }
+      const key = `${regionCode}|${name}`;
+      const g = groups.get(key) ?? { regionCode, name, firstLine: i + 1, items: [] };
+      const seq = col.seq >= 0 && r[col.seq] ? Number(r[col.seq]) : g.items.length;
+      g.items.push({ seq: Number.isFinite(seq) ? seq : g.items.length, title, description: col.desc >= 0 ? (r[col.desc] || null) : null });
+      groups.set(key, g);
+    }
+    let placesUpdated = 0, imported = 0;
+    for (const g of groups.values()) {
+      const placeId = await this.repo.resolvePlaceByRegionName(g.regionCode, g.name);
+      if (!placeId) { skipped.push({ line: g.firstLine, reason: `place not found: ${g.regionCode}/${g.name}` }); continue; }
+      await this.repo.replaceForPlace(placeId, g.items, 'CURATED');
+      placesUpdated++; imported += g.items.length;
+    }
+    return { placesUpdated, imported, skipped };
   }
 }
