@@ -26,4 +26,14 @@ describe('CompositionsProcessor', () => {
     await p.process({ data: { placeId: 'p1' } } as any);
     expect(generator.generate).not.toHaveBeenCalled();
   });
+  it('skips insert when a concurrent writer (e.g. CSV import) sets generatedAt during generate()', async () => {
+    repo.generatedAt.mockResolvedValueOnce(null).mockResolvedValueOnce(new Date());
+    repo.hasCompositions.mockResolvedValue(false);
+    repo.placeGenInfo.mockResolvedValue({ name: '남산', regionName: '서울', description: null });
+    generator.generate.mockResolvedValue({ items: [{ title: 't', description: 'd' }] });
+    await p.process({ data: { placeId: 'p1' } } as any);
+    expect(generator.generate).toHaveBeenCalled();
+    expect(repo.insertGenerated).not.toHaveBeenCalled();
+    expect(repo.markGenerated).not.toHaveBeenCalled();
+  });
 });

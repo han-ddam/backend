@@ -183,8 +183,13 @@ export class CompositionsService {
     for (const g of groups.values()) {
       const placeId = await this.repo.resolvePlaceByRegionName(g.regionCode, g.name);
       if (!placeId) { skipped.push({ line: g.firstLine, reason: `place not found: ${g.regionCode}/${g.name}` }); continue; }
-      await this.repo.replaceForPlace(placeId, g.items, 'CURATED');
-      placesUpdated++; imported += g.items.length;
+      try {
+        await this.repo.replaceForPlace(placeId, g.items, 'CURATED');
+        placesUpdated++;
+        imported += g.items.length;
+      } catch (e) {
+        skipped.push({ line: g.firstLine, reason: `import failed: ${e instanceof Error ? e.message : e}` });
+      }
     }
     return { placesUpdated, imported, skipped };
   }

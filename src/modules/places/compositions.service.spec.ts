@@ -230,5 +230,23 @@ describe('CompositionsService', () => {
       expect(out.imported).toBe(3);
       expect(out.skipped).toEqual([]);
     });
+
+    it('a replaceForPlace failure for one place is reported as skipped, other places still import, and importCsv does not throw', async () => {
+      repo.resolvePlaceByRegionName.mockImplementation(async (rc: string, n: string) =>
+        n === '남산' ? 'p1' : n === '북한산' ? 'p2' : null,
+      );
+      repo.replaceForPlace.mockImplementation(async (placeId: string) => {
+        if (placeId === 'p1') throw new Error('db error');
+        return undefined;
+      });
+      const out = await service.importCsv(csv(
+        'region_code,place_name,seq,title,description\n' +
+        '11110,남산,0,t1,d1\n' +
+        '11140,북한산,0,t2,d2\n',
+      ));
+      expect(out.placesUpdated).toBe(1);
+      expect(out.imported).toBe(1);
+      expect(out.skipped).toEqual([{ line: 2, reason: 'import failed: db error' }]);
+    });
   });
 });

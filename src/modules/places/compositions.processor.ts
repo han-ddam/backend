@@ -34,6 +34,9 @@ export class CompositionsProcessor extends WorkerHost {
       regionName: info.regionName,
       description: info.description ?? undefined,
     });
+    // 재확인: 생성 중 CSV import 등 다른 writer가 먼저 채웠으면 덮어쓰지 않음
+    const after = await this.repo.generatedAt(placeId);
+    if (after !== null) return;
     if (result.items.length > 0) await this.repo.insertGenerated(placeId, result.items);
     else await this.repo.markGenerated(placeId); // 0개면 표시만(무한루프 방지)
   }
