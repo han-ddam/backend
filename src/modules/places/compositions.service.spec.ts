@@ -36,10 +36,13 @@ describe('CompositionsService', () => {
       ]);
       const out = await service.forPlace('p1', 'KO');
       expect(repo.transForCompositions).toHaveBeenCalledWith(['k1', 'k2'], ['KO', 'KO']);
-      expect(out).toEqual([
-        { seq: 1, title: '정자+바다', description: '함께', exampleImageUrl: '/api/places/compositions/photos/compositions/a.jpg', source: 'CURATED' },
-        { seq: 2, title: '정자+바위', description: null, exampleImageUrl: null, source: 'CURATED' },
-      ]);
+      expect(out).toEqual({
+        items: [
+          { seq: 1, title: '정자+바다', description: '함께', exampleImageUrl: '/api/places/compositions/photos/compositions/a.jpg', source: 'CURATED' },
+          { seq: 2, title: '정자+바위', description: null, exampleImageUrl: null, source: 'CURATED' },
+        ],
+        generating: false,
+      });
     });
 
     it('title falls back to empty string when no translation', async () => {
@@ -48,7 +51,10 @@ describe('CompositionsService', () => {
       repo.transForCompositions.mockResolvedValue([]); // 번역 없음
       const out = await service.forPlace('p1', 'EN');
       expect(repo.transForCompositions).toHaveBeenCalledWith(['k9'], ['EN', 'KO']);
-      expect(out).toEqual([{ seq: 1, title: '', description: null, exampleImageUrl: null, source: 'AI' }]);
+      expect(out).toEqual({
+        items: [{ seq: 1, title: '', description: null, exampleImageUrl: null, source: 'AI' }],
+        generating: false,
+      });
     });
 
     it('throws NotFound when place is not ACTIVE', async () => {
@@ -61,7 +67,7 @@ describe('CompositionsService', () => {
       repo.placeActive.mockResolvedValue(true);
       repo.listForPlace.mockResolvedValue([]);
       const out = await service.forPlace('p1', 'KO');
-      expect(out).toEqual([]);
+      expect(out).toEqual({ items: [], generating: false });
     });
 
     it('forPlace: empty + not-generated + enabled → enqueue', async () => {
@@ -71,7 +77,7 @@ describe('CompositionsService', () => {
       repo.generatedAt.mockResolvedValue(null);
       generator.enabled = true;
       const out = await service.forPlace('p1', 'KO');
-      expect(out).toEqual([]);
+      expect(out).toEqual({ items: [], generating: true });
       expect(queue.add).toHaveBeenCalledWith(
         'gen',
         { placeId: 'p1' },
@@ -87,7 +93,7 @@ describe('CompositionsService', () => {
       generator.enabled = true;
       queue.add.mockRejectedValue(new Error('redis'));
       const out = await service.forPlace('p1', 'KO');
-      expect(out).toEqual([]);
+      expect(out).toEqual({ items: [], generating: true });
     });
 
     it('forPlace: has compositions → no enqueue', async () => {
@@ -97,6 +103,10 @@ describe('CompositionsService', () => {
       generator.enabled = true;
       repo.generatedAt.mockResolvedValue(null);
       const out = await service.forPlace('p1', 'KO');
+      expect(out).toEqual({
+        items: [{ seq: 0, title: 't', description: 'd', exampleImageUrl: null, source: 'AI' }],
+        generating: false,
+      });
       expect(queue.add).not.toHaveBeenCalled();
     });
 
@@ -105,7 +115,8 @@ describe('CompositionsService', () => {
       repo.listForPlace.mockResolvedValue([]);
       repo.transForCompositions.mockResolvedValue([]);
       generator.enabled = false;
-      await service.forPlace('p1', 'KO');
+      const out = await service.forPlace('p1', 'KO');
+      expect(out).toEqual({ items: [], generating: false });
       expect(queue.add).not.toHaveBeenCalled();
     });
   });
