@@ -193,6 +193,17 @@ export class PlacesRepository {
     return r.length > 0;
   }
 
+  /** id 존재 여부(상태 무관) — 이미지 업로드 대상 검증용. */
+  async placeExists(placeId: string): Promise<boolean> {
+    const [row] = await this.db.select({ id: places.id }).from(places).where(eq(places.id, placeId));
+    return !!row;
+  }
+
+  async setImageUrl(placeId: string, imageUrl: string | null): Promise<boolean> {
+    const r = await this.db.update(places).set({ imageUrl }).where(eq(places.id, placeId)).returning({ id: places.id });
+    return r.length > 0;
+  }
+
   /** 좌표 기준 radiusM 내 최근접 ACTIVE 장소의 시·군·구 코드 (없으면 null). */
   async nearestRegionCode(
     lat: number,

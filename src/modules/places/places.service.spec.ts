@@ -6,6 +6,7 @@ describe('PlacesService', () => {
   let id: any;
   let ratings: any;
   let weightConfigs: any;
+  let storage: any;
   let service: PlacesService;
 
   beforeEach(() => {
@@ -21,12 +22,15 @@ describe('PlacesService', () => {
       setStatus: jest.fn(),
       userPlaceFlags: jest.fn(),
       setWeightConfig: jest.fn(),
+      placeExists: jest.fn(),
+      setImageUrl: jest.fn(),
     };
     let seq = 0;
     id = { generate: jest.fn(() => `id-${++seq}`) };
     ratings = { aggregateFor: jest.fn().mockResolvedValue({ average: null, count: 0, myScore: null, reviewCount: 0 }) };
     weightConfigs = { exists: jest.fn() };
-    service = new PlacesService(repo, id, ratings, weightConfigs);
+    storage = { save: jest.fn() };
+    service = new PlacesService(repo, id, ratings, weightConfigs, storage);
   });
 
   describe('createPlace', () => {
@@ -295,6 +299,45 @@ describe('PlacesService', () => {
       const out = await service.nearby({ lat: 37, lng: 127, locale: 'KO' });
       expect(out).toEqual([]);
       expect(repo.transForMany).toHaveBeenCalledWith([], ['KO', 'KO']);
+    });
+  });
+
+  describe('adminUploadImage', () => {
+    it('saves the file to storage and sets image_url when the place exists', async () => {
+      repo.placeExists.mockResolvedValue(true);
+      storage.save.mockResolvedValue({ key: 'places/abc.jpg' });
+      repo.setImageUrl.mockResolvedValue(true);
+
+      const buf = Buffer.from('img');
+      const out = await service.adminUploadImage('p1', buf, 'image/jpeg');
+
+      expect(repo.placeExists).toHaveBeenCalledWith('p1');
+      expect(storage.save).toHaveBeenCalledWith(buf, 'image/jpeg', 'places');
+      expect(repo.setImageUrl).toHaveBeenCalledWith('p1', '/api/places/images/places/abc.jpg');
+      expect(out).toEqual({ imageUrl: '/api/places/images/places/abc.jpg' });
+    });
+
+    it('throws NotFound when the place does not exist', async () => {
+      repo.placeExists.mockResolvedValue(false);
+      await expect(service.adminUploadImage('nope', Buffer.from('x'), 'image/jpeg')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(storage.save).not.toHaveBeenCalled();
+      expect(repo.setImageUrl).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('adminDeleteImage', () => {
+    it('clears image_url when the place exists', async () => {
+      repo.setImageUrl.mockResolvedValue(true);
+      const out = await service.adminDeleteImage('p1');
+      expect(repo.setImageUrl).toHaveBeenCalledWith('p1', null);
+      expect(out).toEqual({ imageUrl: null });
+    });
+
+    it('throws NotFound when the place does not exist', async () => {
+      repo.setImageUrl.mockResolvedValue(false);
+      await expect(service.adminDeleteImage('nope')).rejects.toThrow(NotFoundException);
     });
   });
 });
