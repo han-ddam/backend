@@ -169,4 +169,31 @@ export class CompositionsRepository {
       await tx.update(places).set({ compositionsGeneratedAt: this.clock.now() }).where(eq(places.id, placeId));
     });
   }
+
+  /** region_code + KO name으로 place 해석. 정확히 1건일 때만 반환(0/모호 → null). */
+  async resolvePlaceByRegionName(regionCode: string, name: string): Promise<string | null> {
+    const rows = await this.db
+      .select({ id: places.id })
+      .from(places)
+      .innerJoin(placeTrans, and(eq(placeTrans.placeId, places.id), eq(placeTrans.locale, 'KO')))
+      .where(and(eq(places.regionCode, regionCode), eq(placeTrans.name, name)));
+    return rows.length === 1 ? rows[0].id : null;
+  }
+
+  /** place 구도 전체 교체(delete→insert) + generated_at 세팅. */
+  async replaceForPlace(
+    placeId: string,
+    items: { seq: number; title: string; description: string | null }[],
+    source: 'AI' | 'CURATED',
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx.delete(placeCompositions).where(eq(placeCompositions.placeId, placeId)); // trans는 FK CASCADE
+      for (const it of items) {
+        const cid = this.id.generate();
+        await tx.insert(placeCompositions).values({ id: cid, placeId, seq: it.seq, source, exampleImageKey: null });
+        await tx.insert(placeCompositionTrans).values({ compositionId: cid, locale: 'KO', title: it.title, description: it.description });
+      }
+      await tx.update(places).set({ compositionsGeneratedAt: this.clock.now() }).where(eq(places.id, placeId));
+    });
+  }
 }

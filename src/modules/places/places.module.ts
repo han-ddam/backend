@@ -14,6 +14,7 @@ import { GENERATOR } from './compositions/generator/generator.port';
 import { GeminiGenerator } from './compositions/generator/gemini.generator';
 import { PlacesController } from './places.controller';
 import { AdminPlacesController } from './admin-places.controller';
+import { AdminCompositionsController } from './admin-compositions.controller';
 import { MePlacesController } from './me-places.controller';
 
 @Module({
@@ -25,7 +26,7 @@ import { MePlacesController } from './me-places.controller';
     RatingsModule,
     ScoringModule,
   ], // admin 가드(AdminJwtGuard/AdminRolesGuard) + JwtAuthGuard 사용 + weight-config 존재 확인
-  controllers: [PlacesController, AdminPlacesController, MePlacesController],
+  controllers: [PlacesController, AdminPlacesController, AdminCompositionsController, MePlacesController],
   providers: [
     PlacesRepository,
     PlacesService,
