@@ -7,6 +7,7 @@ import { IdService } from '@platform/id/id.service';
 import { buildCursorPage, type CursorPage } from '@platform/pagination/cursor';
 import type { Place, PlaceTrans, localeEnum, placeStatusEnum } from '@db/schema';
 import { RatingsService } from '@modules/ratings/ratings.service';
+import { WeightConfigsService } from '@modules/scoring/weight-configs.service';
 import {
   PlacesRepository,
   type PlaceTransInput,
@@ -75,6 +76,7 @@ export class PlacesService {
     private readonly repo: PlacesRepository,
     private readonly id: IdService,
     private readonly ratings: RatingsService,
+    private readonly weightConfigs: WeightConfigsService,
   ) {}
 
   async getPlace(id: string, locale: Locale, userId?: string | null): Promise<PlaceView> {
@@ -247,6 +249,14 @@ export class PlacesService {
         thumbnailUrl: r.imageUrl ?? null,
       };
     });
+  }
+
+  /** 어드민 — place에 가중치 프로필 연결/해제. */
+  async adminSetWeightConfig(placeId: string, configId: string | null): Promise<{ updated: true }> {
+    if (configId !== null && !(await this.weightConfigs.exists(configId))) throw new NotFoundException('weight config not found');
+    const ok = await this.repo.setWeightConfig(placeId, configId);
+    if (!ok) throw new NotFoundException('Place not found');
+    return { updated: true };
   }
 
   /** locale 행 우선, 없으면 KO 폴백. */

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { buildCursorPage } from '@platform/pagination/cursor';
 import { RatingsRepository } from './ratings.repository';
 
@@ -9,6 +9,9 @@ export class RatingsService {
   async submit(userId: string, placeId: string, score: number): Promise<{ placeId: string; score: number }> {
     if (!(await this.repo.placeActive(placeId))) {
       throw new NotFoundException('Place not found');
+    }
+    if (!(await this.repo.hasVisit(userId, placeId))) {
+      throw new ForbiddenException('visit required to rate');
     }
     await this.repo.upsert(userId, placeId, score.toFixed(1));
     return { placeId, score };
@@ -29,6 +32,9 @@ export class RatingsService {
 
   /** 후기 작성/수정 — 별점 선행 필수(행 없으면 400). */
   async submitReview(userId: string, placeId: string, comment: string): Promise<{ placeId: string; comment: string }> {
+    if (!(await this.repo.hasVisit(userId, placeId))) {
+      throw new ForbiddenException('visit required to rate');
+    }
     const ok = await this.repo.setComment(userId, placeId, comment);
     if (!ok) throw new BadRequestException('Rate the place first');
     return { placeId, comment };

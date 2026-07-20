@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { RatingsService } from './ratings.service';
 import { decodeCursor } from '@platform/pagination/cursor';
 
@@ -8,6 +8,7 @@ describe('RatingsService', () => {
   beforeEach(() => {
     repo = {
       placeActive: jest.fn(),
+      hasVisit: jest.fn(),
       upsert: jest.fn(),
       aggregate: jest.fn(),
       myScore: jest.fn(),
@@ -26,9 +27,23 @@ describe('RatingsService', () => {
 
     it('upserts score as fixed-1 string and returns {placeId, score}', async () => {
       repo.placeActive.mockResolvedValue(true);
+      repo.hasVisit.mockResolvedValue(true);
       repo.upsert.mockResolvedValue(undefined);
       const out = await service.submit('u1', 'p1', 4.5);
       expect(repo.upsert).toHaveBeenCalledWith('u1', 'p1', '4.5');
+      expect(out).toEqual({ placeId: 'p1', score: 4.5 });
+    });
+
+    it('submit rejects when not visited', async () => {
+      repo.placeActive.mockResolvedValue(true);
+      repo.hasVisit.mockResolvedValue(false);
+      await expect(service.submit('u1', 'p1', 4.5)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(repo.upsert).not.toHaveBeenCalled();
+    });
+    it('submit ok when visited', async () => {
+      repo.placeActive.mockResolvedValue(true);
+      repo.hasVisit.mockResolvedValue(true);
+      const out = await service.submit('u1', 'p1', 4.5);
       expect(out).toEqual({ placeId: 'p1', score: 4.5 });
     });
   });
@@ -51,10 +66,17 @@ describe('RatingsService', () => {
 
   describe('submitReview', () => {
     it('400 when no rating row exists', async () => {
+      repo.hasVisit.mockResolvedValue(true);
       repo.setComment.mockResolvedValue(false);
       await expect(service.submitReview('u1', 'p1', '좋아요')).rejects.toThrow('Rate the place first');
     });
+    it('rejects when not visited', async () => {
+      repo.hasVisit.mockResolvedValue(false);
+      await expect(service.submitReview('u1', 'p1', '좋아요')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(repo.setComment).not.toHaveBeenCalled();
+    });
     it('sets comment and returns it', async () => {
+      repo.hasVisit.mockResolvedValue(true);
       repo.setComment.mockResolvedValue(true);
       const out = await service.submitReview('u1', 'p1', '정자 뷰 최고');
       expect(repo.setComment).toHaveBeenCalledWith('u1', 'p1', '정자 뷰 최고');

@@ -1,5 +1,5 @@
-import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ScoringService } from './scoring.service';
 
 @ApiTags('scoring')
@@ -15,6 +15,12 @@ export class ScoringController {
     type: String,
     example: '019eea71-dc41-7101-a57d-f6ebd3b80e43',
     description: '여행지 UUID (GET /api/places 목록에서 획득)',
+  })
+  @ApiQuery({
+    name: 'type',
+    enum: ['VISIT', 'PHOTO'],
+    required: false,
+    description: '인증 타입 (기본 PHOTO)',
   })
   @ApiOkResponse({
     description: '점수 미리보기 (전역 인터셉터가 {result: ...}로 감쌈)',
@@ -32,7 +38,7 @@ export class ScoringController {
       },
     },
   })
-  preview(@Param('placeId', ParseUUIDPipe) placeId: string) {
-    return this.scoring.preview(placeId);
+  preview(@Param('placeId', ParseUUIDPipe) placeId: string, @Query('type') type?: 'VISIT' | 'PHOTO') {
+    return this.scoring.preview(placeId, type === 'VISIT' ? 'VISIT' : 'PHOTO');
   }
 }

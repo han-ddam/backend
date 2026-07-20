@@ -13,6 +13,7 @@ import {
 import { localeEnum } from './enums';
 import { regions } from './regions';
 import { users } from './users';
+import { scoreWeightConfigs } from './score-weight-configs';
 
 export const placeStatusEnum = pgEnum('place_status', ['ACTIVE', 'HIDDEN', 'PENDING_REVIEW']);
 
@@ -34,6 +35,7 @@ export const places = pgTable('place', {
     .default('1.00'),
   tags: text('tags').array().notNull().default([]),
   imageUrl: text('image_url'), // TourAPI firstimage URL (nullable, 핫링크)
+  weightConfigId: uuid('weight_config_id').references(() => scoreWeightConfigs.id, { onDelete: 'set null' }),
   status: placeStatusEnum('status').notNull().default('ACTIVE'),
   // 사용자 제출 장소의 등록자 (NULL = 어드민 큐레이션/시드)
   createdBy: uuid('created_by').references(() => users.id, {

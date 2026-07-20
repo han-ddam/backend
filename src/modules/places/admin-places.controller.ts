@@ -26,6 +26,7 @@ import {
   CreatePlaceDto,
   UpdatePlaceStatusDto,
 } from './dto/place.dto';
+import { AssignWeightConfigDto } from '@modules/scoring/dto/weight-config.dto';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -64,6 +65,12 @@ export class AdminPlacesController {
   @Patch(':id/status')
   setStatus(@Param('id') id: string, @Body() dto: UpdatePlaceStatusDto) {
     return this.places.setPlaceStatus(id, dto.status);
+  }
+
+  @ApiOperation({ summary: 'place에 가중치 프로필 연결/해제 (어드민)' })
+  @Patch(':id/weight-config')
+  setWeightConfig(@Param('id') id: string, @Body() dto: AssignWeightConfigDto) {
+    return this.places.adminSetWeightConfig(id, dto.configId);
   }
 
   @ApiOperation({ summary: '구도 예시 이미지 업로드 (어드민)' })

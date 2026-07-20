@@ -29,7 +29,7 @@ describe('CertificationsProcessor', () => {
     });
     repo.applyAccrual.mockResolvedValue({ awarded: true, weightedScore: 22.5 });
     await proc.process(job('c1'));
-    expect(scoring.preview).toHaveBeenCalledWith('p1');
+    expect(scoring.preview).toHaveBeenCalledWith('p1', 'PHOTO');
     expect(repo.applyAccrual).toHaveBeenCalledWith({
       certId: 'c1',
       userId: 'u1',

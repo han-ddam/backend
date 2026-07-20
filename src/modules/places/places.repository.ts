@@ -188,6 +188,11 @@ export class PlacesRepository {
     });
   }
 
+  async setWeightConfig(placeId: string, configId: string | null): Promise<boolean> {
+    const r = await this.db.update(places).set({ weightConfigId: configId }).where(eq(places.id, placeId)).returning({ id: places.id });
+    return r.length > 0;
+  }
+
   /** 좌표 기준 radiusM 내 최근접 ACTIVE 장소의 시·군·구 코드 (없으면 null). */
   async nearestRegionCode(
     lat: number,
