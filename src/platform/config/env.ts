@@ -19,6 +19,10 @@ export const envSchema = z.object({
   // 구글 ID token aud 허용목록 (콤마구분). 미설정이면 구글 로그인 거부(fail-closed). 카카오/네이버 무관.
   GOOGLE_CLIENT_ID: z.string().optional(),
 
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default('gemini-2.0-flash'),
+  COMPOSITION_COUNT: z.coerce.number().int().min(1).max(10).default(3),
+
   // CORS allowlist: '*' (reflect any origin) or comma-separated origins.
   CORS_ORIGINS: z.string().default('*'),
 
