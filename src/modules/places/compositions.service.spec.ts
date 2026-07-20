@@ -77,6 +77,8 @@ describe('CompositionsService', () => {
       repo.placeActive.mockResolvedValue(true);
       repo.listForPlace.mockResolvedValue([{ id: 'c1', seq: 0, source: 'AI', exampleImageKey: null }]);
       repo.transForCompositions.mockResolvedValue([{ compositionId: 'c1', locale: 'KO', title: 't', description: 'd' }]);
+      generator.enabled = true;
+      repo.generatedAt.mockResolvedValue(null);
       const out = await service.forPlace('p1', 'KO');
       expect(queue.add).not.toHaveBeenCalled();
     });
