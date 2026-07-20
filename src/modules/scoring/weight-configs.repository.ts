@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { desc, eq, sql } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
-import { scoreWeightConfigs } from '@db/schema';
+import { scoreWeightConfigs, type ScoreWeightConfig } from '@db/schema';
 
 @Injectable()
 export class WeightConfigsRepository {
@@ -14,7 +14,7 @@ export class WeightConfigsRepository {
     });
   }
 
-  async listPage(p: { limit: number; offset: number }): Promise<{ rows: any[]; total: number }> {
+  async listPage(p: { limit: number; offset: number }): Promise<{ rows: ScoreWeightConfig[]; total: number }> {
     const rows = await this.db.select().from(scoreWeightConfigs)
       .orderBy(desc(scoreWeightConfigs.createdAt)).limit(p.limit).offset(p.offset);
     const [{ total }] = await this.db.select({ total: sql<number>`count(*)::int` }).from(scoreWeightConfigs);
@@ -26,8 +26,12 @@ export class WeightConfigsRepository {
     if (patch.name !== undefined) set.name = patch.name;
     if (patch.visitWeight !== undefined) set.visitWeight = patch.visitWeight.toFixed(2);
     if (patch.photoWeight !== undefined) set.photoWeight = patch.photoWeight.toFixed(2);
-    if (Object.keys(set).length === 0) return true;
-    const r = await this.db.update(scoreWeightConfigs).set(set).where(eq(scoreWeightConfigs.id, id)).returning({ id: scoreWeightConfigs.id });
+    if (Object.keys(set).length === 0) return this.exists(id);
+    const r = await this.db
+      .update(scoreWeightConfigs)
+      .set(set)
+      .where(eq(scoreWeightConfigs.id, id))
+      .returning({ id: scoreWeightConfigs.id });
     return r.length > 0;
   }
 
