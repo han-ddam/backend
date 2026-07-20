@@ -66,13 +66,17 @@ services:
       - handdam-uploads:/app/uploads
 
   admin:
-    image: nginx:alpine
+    # ../admin 레포를 컨테이너 안에서 빌드(멀티스테이지) → nginx로 서빙.
+    # 호스트에 node/pnpm 불필요. 경로 바꾸려면 .env 의 ADMIN_CONTEXT 로.
+    build:
+      context: ${ADMIN_CONTEXT:-../admin}
+      args:
+        VITE_API_BASE_URL: /api
+    image: handdam-admin:local
     container_name: handdam-admin
     restart: unless-stopped
     volumes:
-      # 서버에서 admin 레포를 ../admin 에 clone 한 후 pnpm build 실행
-      # 경로를 바꾸려면 .env 에서 ADMIN_DIST_PATH 를 지정
-      - ${ADMIN_DIST_PATH:-../admin/dist}:/usr/share/nginx/html:ro
+      # dist는 이미지에 포함됨. nginx 설정만 마운트.
       - ./docker/nginx-admin.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       # localhost only — cloudflared 가 이 포트를 외부에 노출

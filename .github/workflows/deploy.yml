@@ -26,13 +26,15 @@ jobs:
             set -e
             cd ${{ secrets.DEPLOY_DIR }}
             git pull origin main
+            # admin 레포(../admin, 별도 repo)도 최신화 — 컨테이너 빌드 컨텍스트로 사용
+            git -C ../admin pull origin main
             COMPOSE="docker compose -f compose.server.yml"
-            # 1) 이미지 빌드 (Dockerfile 멀티스테이지)
-            $COMPOSE build app
+            # 1) 이미지 빌드 (backend app + admin 멀티스테이지)
+            $COMPOSE build app admin
             # 2) DB 먼저 기동 후 마이그레이션 (신규 테이블/컬럼 반영)
             $COMPOSE up -d postgres redis
             $COMPOSE run --rm app node dist/db/migrate.js
-            # 3) 전체 기동 (app + worker)
+            # 3) 전체 기동 (app + worker + admin)
             $COMPOSE up -d
             # 4) 정리
             docker image prune -f || true
