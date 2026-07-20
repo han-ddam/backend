@@ -43,6 +43,7 @@ export const places = pgTable('place', {
   }),
   createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  compositionsGeneratedAt: timestamp('compositions_generated_at', { withTimezone: true }),
 });
 
 /** 여행지 다국어 텍스트 (KO 폴백). */

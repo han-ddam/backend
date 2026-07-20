@@ -1,0 +1,1 @@
+ALTER TABLE "place" ADD COLUMN "compositions_generated_at" timestamp with time zone;

@@ -34,6 +34,7 @@
     "infra:down": "docker compose down"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@nest-lab/throttler-storage-redis": "^1.2.0",
     "@nestjs/bullmq": "^10.2.1",
     "@nestjs/common": "^10.4.4",

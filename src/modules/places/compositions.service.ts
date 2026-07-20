@@ -1,8 +1,11 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import type { Queue } from 'bullmq';
 import { localeEnum } from '@db/schema'; // 값으로도 사용 (enumValues)
 import { IdService } from '@platform/id/id.service';
 import { STORAGE, type StoragePort } from '@platform/storage/storage.port';
 import { CompositionsRepository } from './compositions.repository';
+import { GENERATOR, type CompositionGeneratorPort } from './compositions/generator/generator.port';
 
 type Locale = (typeof localeEnum.enumValues)[number];
 
@@ -24,10 +27,14 @@ export interface AdminCompositionItem {
 
 @Injectable()
 export class CompositionsService {
+  private readonly logger = new Logger(CompositionsService.name);
+
   constructor(
     private readonly repo: CompositionsRepository,
     @Inject(STORAGE) private readonly storage: StoragePort,
     private readonly id: IdService,
+    @InjectQueue('composition') private readonly queue: Queue,
+    @Inject(GENERATOR) private readonly generator: CompositionGeneratorPort,
   ) {}
 
   /** 공개 조회 — seq순, locale/KO 폴백, imageUrl 조립. */
@@ -40,6 +47,26 @@ export class CompositionsService {
       rows.map((r) => r.id),
       [locale, 'KO'],
     );
+    if (rows.length === 0 && this.generator.enabled) {
+      const gen = await this.repo.generatedAt(placeId);
+      if (gen === null) {
+        try {
+          await this.queue.add(
+            'gen',
+            { placeId },
+            {
+              jobId: placeId,
+              removeOnComplete: true,
+              removeOnFail: true,
+              attempts: 2,
+              backoff: { type: 'exponential', delay: 3000 },
+            },
+          );
+        } catch (e) {
+          this.logger.warn(`composition enqueue failed for ${placeId}: ${e}`);
+        }
+      }
+    }
     return rows.map((r) => {
       const t = this.pickTrans(trans.filter((x) => x.compositionId === r.id), locale);
       return {

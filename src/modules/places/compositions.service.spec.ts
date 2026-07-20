@@ -2,7 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { CompositionsService } from './compositions.service';
 
 describe('CompositionsService', () => {
-  let repo: any, storage: any, id: any, service: CompositionsService;
+  let repo: any, storage: any, id: any, queue: any, generator: any, service: CompositionsService;
 
   beforeEach(() => {
     repo = {
@@ -11,11 +11,14 @@ describe('CompositionsService', () => {
       transForCompositions: jest.fn(),
       create: jest.fn(),
       deleteById: jest.fn(),
+      generatedAt: jest.fn(),
     };
     storage = { save: jest.fn() };
     let n = 0;
     id = { generate: jest.fn(() => `c-${++n}`) };
-    service = new CompositionsService(repo, storage, id);
+    queue = { add: jest.fn() };
+    generator = { enabled: false };
+    service = new CompositionsService(repo, storage, id, queue, generator);
   });
 
   describe('forPlace', () => {
@@ -57,6 +60,51 @@ describe('CompositionsService', () => {
       repo.listForPlace.mockResolvedValue([]);
       const out = await service.forPlace('p1', 'KO');
       expect(out).toEqual([]);
+    });
+
+    it('forPlace: empty + not-generated + enabled → enqueue', async () => {
+      repo.placeActive.mockResolvedValue(true);
+      repo.listForPlace.mockResolvedValue([]);
+      repo.transForCompositions.mockResolvedValue([]);
+      repo.generatedAt.mockResolvedValue(null);
+      generator.enabled = true;
+      const out = await service.forPlace('p1', 'KO');
+      expect(out).toEqual([]);
+      expect(queue.add).toHaveBeenCalledWith(
+        'gen',
+        { placeId: 'p1' },
+        expect.objectContaining({ jobId: 'p1', removeOnFail: true }),
+      );
+    });
+
+    it('forPlace: queue.add rejects → does not throw, still returns rows', async () => {
+      repo.placeActive.mockResolvedValue(true);
+      repo.listForPlace.mockResolvedValue([]);
+      repo.transForCompositions.mockResolvedValue([]);
+      repo.generatedAt.mockResolvedValue(null);
+      generator.enabled = true;
+      queue.add.mockRejectedValue(new Error('redis'));
+      const out = await service.forPlace('p1', 'KO');
+      expect(out).toEqual([]);
+    });
+
+    it('forPlace: has compositions → no enqueue', async () => {
+      repo.placeActive.mockResolvedValue(true);
+      repo.listForPlace.mockResolvedValue([{ id: 'c1', seq: 0, source: 'AI', exampleImageKey: null }]);
+      repo.transForCompositions.mockResolvedValue([{ compositionId: 'c1', locale: 'KO', title: 't', description: 'd' }]);
+      generator.enabled = true;
+      repo.generatedAt.mockResolvedValue(null);
+      const out = await service.forPlace('p1', 'KO');
+      expect(queue.add).not.toHaveBeenCalled();
+    });
+
+    it('forPlace: generator disabled → no enqueue', async () => {
+      repo.placeActive.mockResolvedValue(true);
+      repo.listForPlace.mockResolvedValue([]);
+      repo.transForCompositions.mockResolvedValue([]);
+      generator.enabled = false;
+      await service.forPlace('p1', 'KO');
+      expect(queue.add).not.toHaveBeenCalled();
     });
   });
 

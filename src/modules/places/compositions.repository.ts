@@ -1,8 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
+import { IdService } from '@platform/id/id.service';
+import { ClockService } from '@platform/clock/clock.service';
 import {
   places,
+  placeTrans,
+  regionTrans,
   placeCompositions,
   placeCompositionTrans,
   type localeEnum,
@@ -12,7 +16,11 @@ type Locale = (typeof localeEnum.enumValues)[number];
 
 @Injectable()
 export class CompositionsRepository {
-  constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: DrizzleDB,
+    private readonly id: IdService,
+    private readonly clock: ClockService,
+  ) {}
 
   async placeActive(placeId: string): Promise<boolean> {
     const [row] = await this.db
@@ -97,5 +105,68 @@ export class CompositionsRepository {
       .where(eq(placeCompositions.id, id))
       .returning({ id: placeCompositions.id });
     return rows.length > 0;
+  }
+
+  /** place.compositions_generated_at (없으면 'MISSING'=place 없음). */
+  async generatedAt(placeId: string): Promise<Date | null | 'MISSING'> {
+    const [row] = await this.db
+      .select({ g: places.compositionsGeneratedAt })
+      .from(places)
+      .where(eq(places.id, placeId));
+    if (!row) return 'MISSING';
+    return row.g ?? null;
+  }
+
+  async hasCompositions(placeId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: placeCompositions.id })
+      .from(placeCompositions)
+      .where(eq(placeCompositions.placeId, placeId))
+      .limit(1);
+    return !!row;
+  }
+
+  /** 생성 프롬프트용 place 정보(KO name, 지역명, description). name/description은 place_trans, 지역명은 region_trans(둘 다 KO). */
+  async placeGenInfo(
+    placeId: string,
+  ): Promise<{ name: string; regionName: string; description: string | null } | null> {
+    const [p] = await this.db
+      .select({ regionCode: places.regionCode })
+      .from(places)
+      .where(and(eq(places.id, placeId), eq(places.status, 'ACTIVE')));
+    if (!p) return null;
+    const [t] = await this.db
+      .select({ name: placeTrans.name, description: placeTrans.description })
+      .from(placeTrans)
+      .where(and(eq(placeTrans.placeId, placeId), eq(placeTrans.locale, 'KO')));
+    const [r] = await this.db
+      .select({ name: regionTrans.name })
+      .from(regionTrans)
+      .where(and(eq(regionTrans.regionCode, p.regionCode), eq(regionTrans.locale, 'KO')));
+    return { name: t?.name ?? '', regionName: r?.name ?? '', description: t?.description ?? null };
+  }
+
+  async markGenerated(placeId: string): Promise<void> {
+    await this.db
+      .update(places)
+      .set({ compositionsGeneratedAt: this.clock.now() })
+      .where(eq(places.id, placeId));
+  }
+
+  /** 생성 결과 저장 + generated_at 세팅(트랜잭션). */
+  async insertGenerated(placeId: string, items: { title: string; description: string }[]): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      for (let i = 0; i < items.length; i++) {
+        const cid = this.id.generate();
+        await tx.insert(placeCompositions).values({ id: cid, placeId, seq: i, source: 'AI', exampleImageKey: null });
+        await tx.insert(placeCompositionTrans).values({
+          compositionId: cid,
+          locale: 'KO',
+          title: items[i].title,
+          description: items[i].description,
+        });
+      }
+      await tx.update(places).set({ compositionsGeneratedAt: this.clock.now() }).where(eq(places.id, placeId));
+    });
   }
 }
