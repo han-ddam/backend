@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
@@ -53,6 +53,10 @@ export class CertificationsService {
     }
     const coords = await this.repo.placeCoords(dto.placeId);
     if (!coords) throw new NotFoundException('Place not found');
+    const COOLDOWN_DAYS = 7;
+    if (await this.repo.recentCertExists(userId, dto.placeId, COOLDOWN_DAYS)) {
+      throw new ConflictException('재인증은 마지막 인증 후 7일 경과 후 가능합니다');
+    }
     for (const key of dto.imageKeys) {
       if (!(await this.storage.exists(key))) throw new BadRequestException('imageKey not found');
     }
@@ -70,7 +74,10 @@ export class CertificationsService {
       await this.repo.createRejected({ ...base, reason: 'OUT_OF_RANGE' });
       return { certId, status: 'REJECTED', proximityPass: false };
     }
-    await this.repo.createPending(base);
+    const created = await this.repo.createPendingGuarded(base, COOLDOWN_DAYS);
+    if (created === 'COOLDOWN') {
+      throw new ConflictException('재인증은 마지막 인증 후 7일 경과 후 가능합니다');
+    }
     if (dto.imageKeys.length === 0) {
       // 방문(0장): 검증 없이 즉시 적립
       const preview = await this.scoring.preview(dto.placeId, 'VISIT');

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, lt, ne, or, sql } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import { IdService } from '@platform/id/id.service';
 import { ClockService } from '@platform/clock/clock.service';
@@ -35,8 +35,38 @@ export class CertificationsRepository {
     return { lat: row.lat, lng: row.lng };
   }
 
-  async createPending(p: CreateInput): Promise<void> {
-    await this.db.transaction(async (tx) => {
+  /** (user,place)에 최근 days일 내 non-REJECTED 인증이 있나 — 재인증 쿨다운용. */
+  async recentCertExists(userId: string, placeId: string, days: number): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: certifications.id })
+      .from(certifications)
+      .where(
+        and(
+          eq(certifications.userId, userId),
+          eq(certifications.placeId, placeId),
+          ne(certifications.status, 'REJECTED'),
+          gt(certifications.createdAt, sql`now() - make_interval(days => ${days})`),
+        ),
+      );
+    return !!row;
+  }
+
+  /** 쿨다운 검사 + PENDING 인증 생성을 (user,place) advisory lock으로 원자화 — 동시요청 우회 방지. */
+  async createPendingGuarded(p: CreateInput, cooldownDays: number): Promise<'CREATED' | 'COOLDOWN'> {
+    return this.db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${p.userId}), hashtext(${p.placeId}))`);
+      const [recent] = await tx
+        .select({ id: certifications.id })
+        .from(certifications)
+        .where(
+          and(
+            eq(certifications.userId, p.userId),
+            eq(certifications.placeId, p.placeId),
+            ne(certifications.status, 'REJECTED'),
+            gt(certifications.createdAt, sql`now() - make_interval(days => ${cooldownDays})`),
+          ),
+        );
+      if (recent) return 'COOLDOWN';
       await tx.insert(certifications).values({
         id: p.id, userId: p.userId, placeId: p.placeId,
         caption: p.caption ?? null, visibility: p.visibility,
@@ -50,6 +80,7 @@ export class CertificationsRepository {
           })),
         );
       }
+      return 'CREATED';
     });
   }
 

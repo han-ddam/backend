@@ -10,10 +10,12 @@ describe('CertificationsService', () => {
       placeCoords: jest.fn(),
       findCertByImageKey: jest.fn(),
       createPending: jest.fn(),
+      createPendingGuarded: jest.fn().mockResolvedValue('CREATED'),
       createRejected: jest.fn(),
       getResult: jest.fn(),
       publicFeedForPlace: jest.fn(),
       applyAccrual: jest.fn(),
+      recentCertExists: jest.fn(),
     };
     geo = { isWithin: jest.fn(), distanceMeters: jest.fn() };
     storage = { save: jest.fn(), exists: jest.fn() };
@@ -36,6 +38,7 @@ describe('CertificationsService', () => {
     it('submit: N images with representativeIndex → createPending with images[]', async () => {
       repo.findCertByImageKey.mockResolvedValue(null);
       repo.placeCoords.mockResolvedValue({ lat: 37.5, lng: 127.0 });
+      repo.recentCertExists.mockResolvedValue(false);
       storage.exists.mockResolvedValue(true);
       geo.distanceMeters.mockResolvedValue(10);
       geo.isWithin.mockResolvedValue(true);
@@ -45,19 +48,20 @@ describe('CertificationsService', () => {
         representativeIndex: 1, deviceLat: 37.5, deviceLng: 127.0, visibility: 'PUBLIC',
       } as any);
       expect(out).toEqual({ certId: 'cert-1', status: 'PENDING', proximityPass: true });
-      expect(repo.createPending).toHaveBeenCalledWith(expect.objectContaining({
+      expect(repo.createPendingGuarded).toHaveBeenCalledWith(expect.objectContaining({
         id: 'cert-1', userId: 'u1', placeId: 'p1', visibility: 'PUBLIC',
         images: [
           { imageKey: 'certifications/a.jpg', seq: 0, isRepresentative: false },
           { imageKey: 'certifications/b.jpg', seq: 1, isRepresentative: true },
         ],
-      }));
+      }), 7);
       expect(queue.add).toHaveBeenCalledWith('verify', { certId: 'cert-1' });
     });
 
     it('submit: out of range → createRejected, no queue', async () => {
       repo.findCertByImageKey.mockResolvedValue(null);
       repo.placeCoords.mockResolvedValue({ lat: 37.5, lng: 127.0 });
+      repo.recentCertExists.mockResolvedValue(false);
       storage.exists.mockResolvedValue(true);
       geo.distanceMeters.mockResolvedValue(9999);
       geo.isWithin.mockResolvedValue(false);
@@ -90,8 +94,31 @@ describe('CertificationsService', () => {
       expect(repo.createPending).not.toHaveBeenCalled();
     });
 
+    it('submit: rejects re-cert within 7 days (409)', async () => {
+      repo.findCertByImageKey.mockResolvedValue(null);
+      repo.placeCoords.mockResolvedValue({ lat: 37.5, lng: 127.0 });
+      repo.recentCertExists.mockResolvedValue(true);
+      await expect(service.submit('u1', { placeId: 'p1', imageKeys: [], deviceLat: 37.5, deviceLng: 127.0, visibility: 'PUBLIC' } as any))
+        .rejects.toThrow('7일');
+      expect(repo.recentCertExists).toHaveBeenCalledWith('u1', 'p1', 7);
+      expect(repo.createPendingGuarded).not.toHaveBeenCalled();
+    });
+
+    it('submit: guarded create returns COOLDOWN → 409 (concurrent race backstop)', async () => {
+      repo.findCertByImageKey.mockResolvedValue(null);
+      repo.placeCoords.mockResolvedValue({ lat: 37.5, lng: 127.0 });
+      repo.recentCertExists.mockResolvedValue(false);
+      geo.isWithin.mockResolvedValue(true); geo.distanceMeters.mockResolvedValue(10);
+      id.generate.mockReturnValue('cert-c');
+      repo.createPendingGuarded.mockResolvedValue('COOLDOWN');
+      await expect(service.submit('u1', { placeId: 'p1', imageKeys: [], deviceLat: 37.5, deviceLng: 127.0, visibility: 'PUBLIC' } as any))
+        .rejects.toThrow('7일');
+      expect(repo.applyAccrual).not.toHaveBeenCalled();
+    });
+
     it('submit: 0 images → VISIT, immediate ACCEPTED + accrual, no queue', async () => {
       repo.placeCoords.mockResolvedValue({ lat: 37.5, lng: 127.0 });
+      repo.recentCertExists.mockResolvedValue(false);
       geo.distanceMeters.mockResolvedValue(10);
       geo.isWithin.mockResolvedValue(true);
       id.generate.mockReturnValue('cert-v');
@@ -99,7 +126,7 @@ describe('CertificationsService', () => {
       repo.applyAccrual.mockResolvedValue({ awarded: true, weightedScore: 10 });
       const out = await service.submit('u1', { placeId: 'p1', imageKeys: [], deviceLat: 37.5, deviceLng: 127.0, visibility: 'PUBLIC' } as any);
       expect(out).toEqual({ certId: 'cert-v', status: 'ACCEPTED', proximityPass: true });
-      expect(repo.createPending).toHaveBeenCalledWith(expect.objectContaining({ images: [] }));
+      expect(repo.createPendingGuarded).toHaveBeenCalledWith(expect.objectContaining({ images: [] }), 7);
       expect(repo.applyAccrual).toHaveBeenCalledWith(expect.objectContaining({ certId: 'cert-v', type: 'VISIT' }));
       expect(queue.add).not.toHaveBeenCalled();
       expect(badges.evaluate).toHaveBeenCalledWith('u1');
