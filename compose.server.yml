@@ -65,6 +65,21 @@ services:
     volumes:
       - handdam-uploads:/app/uploads
 
+  admin:
+    image: nginx:alpine
+    container_name: handdam-admin
+    restart: unless-stopped
+    volumes:
+      # 서버에서 admin 레포를 ../admin 에 clone 한 후 pnpm build 실행
+      # 경로를 바꾸려면 .env 에서 ADMIN_DIST_PATH 를 지정
+      - ${ADMIN_DIST_PATH:-../admin/dist}:/usr/share/nginx/html:ro
+      - ./docker/nginx-admin.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      # localhost only — cloudflared 가 이 포트를 외부에 노출
+      - '127.0.0.1:${ADMIN_PORT:-8080}:80'
+    depends_on:
+      - app
+
 volumes:
   handdam-pgdata:
   handdam-redisdata:
