@@ -197,5 +197,38 @@ describe('CompositionsService', () => {
       expect(out.imported).toBe(2);
       expect(out.skipped).toEqual([{ line: 4, reason: 'place not found: 99999/없는곳' }]);
     });
+
+    it('skips a malformed row (column count mismatch from an unpaired quote) without corrupting fields', async () => {
+      repo.resolvePlaceByRegionName.mockImplementation(async (rc: string, n: string) => (n === '남산' ? 'p1' : null));
+      // stray `"` in the title toggles quote-mode and swallows the following comma,
+      // merging title/description into one cell → row has 4 cells instead of 5.
+      const out = await service.importCsv(csv(
+        'region_code,place_name,seq,title,description\n' +
+        '11110,남산,0,사진 6" 렌즈,d1\n',
+      ));
+      expect(out.skipped).toEqual([
+        { line: 2, reason: 'malformed row (expected 5 columns, got 4)' },
+      ]);
+      expect(out.imported).toBe(0);
+      expect(out.placesUpdated).toBe(0);
+      expect(repo.replaceForPlace).not.toHaveBeenCalled();
+    });
+
+    it('falls back to index when seq is a non-integer or negative, without throwing', async () => {
+      repo.resolvePlaceByRegionName.mockResolvedValue('p1');
+      const out = await service.importCsv(csv(
+        'region_code,place_name,seq,title,description\n' +
+        '11110,남산,1.5,t1,d1\n' +
+        '11110,남산,-3,t2,d2\n' +
+        '11110,남산,1,t3,d3\n',
+      ));
+      expect(repo.replaceForPlace).toHaveBeenCalledWith('p1', [
+        { seq: 0, title: 't1', description: 'd1' }, // 1.5 → not an integer → index fallback
+        { seq: 1, title: 't2', description: 'd2' }, // -3 → negative → index fallback
+        { seq: 1, title: 't3', description: 'd3' }, // valid integer seq kept as-is
+      ], 'CURATED');
+      expect(out.imported).toBe(3);
+      expect(out.skipped).toEqual([]);
+    });
   });
 });

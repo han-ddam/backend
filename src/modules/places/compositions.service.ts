@@ -166,12 +166,17 @@ export class CompositionsService {
     const groups = new Map<string, { regionCode: string; name: string; firstLine: number; items: { seq: number; title: string; description: string | null }[] }>();
     for (let i = 1; i < rows.length; i++) {
       const r = rows[i];
+      if (r.length !== rows[0].length) {
+        skipped.push({ line: i + 1, reason: `malformed row (expected ${rows[0].length} columns, got ${r.length})` });
+        continue;
+      }
       const regionCode = r[col.region] ?? '', name = r[col.name] ?? '', title = r[col.title] ?? '';
       if (!regionCode || !name || !title) { skipped.push({ line: i + 1, reason: 'missing region_code/place_name/title' }); continue; }
       const key = `${regionCode}|${name}`;
       const g = groups.get(key) ?? { regionCode, name, firstLine: i + 1, items: [] };
-      const seq = col.seq >= 0 && r[col.seq] ? Number(r[col.seq]) : g.items.length;
-      g.items.push({ seq: Number.isFinite(seq) ? seq : g.items.length, title, description: col.desc >= 0 ? (r[col.desc] || null) : null });
+      const n = col.seq >= 0 && r[col.seq] ? Number(r[col.seq]) : g.items.length;
+      const seq = Number.isInteger(n) && n >= 0 ? n : g.items.length;
+      g.items.push({ seq, title, description: col.desc >= 0 ? (r[col.desc] || null) : null });
       groups.set(key, g);
     }
     let placesUpdated = 0, imported = 0;
