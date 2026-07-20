@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
@@ -53,6 +53,10 @@ export class CertificationsService {
     }
     const coords = await this.repo.placeCoords(dto.placeId);
     if (!coords) throw new NotFoundException('Place not found');
+    const COOLDOWN_DAYS = 7;
+    if (await this.repo.recentCertExists(userId, dto.placeId, COOLDOWN_DAYS)) {
+      throw new ConflictException('재인증은 마지막 인증 후 7일 경과 후 가능합니다');
+    }
     for (const key of dto.imageKeys) {
       if (!(await this.storage.exists(key))) throw new BadRequestException('imageKey not found');
     }

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, lt, ne, or, sql } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import { IdService } from '@platform/id/id.service';
 import { ClockService } from '@platform/clock/clock.service';
@@ -33,6 +33,22 @@ export class CertificationsRepository {
       .where(and(eq(places.id, placeId), eq(places.status, 'ACTIVE')));
     if (!row || row.lat === null || row.lng === null) return null;
     return { lat: row.lat, lng: row.lng };
+  }
+
+  /** (user,place)에 최근 days일 내 non-REJECTED 인증이 있나 — 재인증 쿨다운용. */
+  async recentCertExists(userId: string, placeId: string, days: number): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: certifications.id })
+      .from(certifications)
+      .where(
+        and(
+          eq(certifications.userId, userId),
+          eq(certifications.placeId, placeId),
+          ne(certifications.status, 'REJECTED'),
+          gt(certifications.createdAt, sql`now() - make_interval(days => ${days})`),
+        ),
+      );
+    return !!row;
   }
 
   async createPending(p: CreateInput): Promise<void> {

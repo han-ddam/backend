@@ -14,6 +14,7 @@ describe('CertificationsService', () => {
       getResult: jest.fn(),
       publicFeedForPlace: jest.fn(),
       applyAccrual: jest.fn(),
+      recentCertExists: jest.fn(),
     };
     geo = { isWithin: jest.fn(), distanceMeters: jest.fn() };
     storage = { save: jest.fn(), exists: jest.fn() };
@@ -36,6 +37,7 @@ describe('CertificationsService', () => {
     it('submit: N images with representativeIndex → createPending with images[]', async () => {
       repo.findCertByImageKey.mockResolvedValue(null);
       repo.placeCoords.mockResolvedValue({ lat: 37.5, lng: 127.0 });
+      repo.recentCertExists.mockResolvedValue(false);
       storage.exists.mockResolvedValue(true);
       geo.distanceMeters.mockResolvedValue(10);
       geo.isWithin.mockResolvedValue(true);
@@ -58,6 +60,7 @@ describe('CertificationsService', () => {
     it('submit: out of range → createRejected, no queue', async () => {
       repo.findCertByImageKey.mockResolvedValue(null);
       repo.placeCoords.mockResolvedValue({ lat: 37.5, lng: 127.0 });
+      repo.recentCertExists.mockResolvedValue(false);
       storage.exists.mockResolvedValue(true);
       geo.distanceMeters.mockResolvedValue(9999);
       geo.isWithin.mockResolvedValue(false);
@@ -90,8 +93,18 @@ describe('CertificationsService', () => {
       expect(repo.createPending).not.toHaveBeenCalled();
     });
 
+    it('submit: rejects re-cert within 7 days (409)', async () => {
+      repo.findCertByImageKey.mockResolvedValue(null);
+      repo.placeCoords.mockResolvedValue({ lat: 37.5, lng: 127.0 });
+      repo.recentCertExists.mockResolvedValue(true);
+      await expect(service.submit('u1', { placeId: 'p1', imageKeys: [], deviceLat: 37.5, deviceLng: 127.0, visibility: 'PUBLIC' } as any))
+        .rejects.toThrow('7일');
+      expect(repo.createPending).not.toHaveBeenCalled();
+    });
+
     it('submit: 0 images → VISIT, immediate ACCEPTED + accrual, no queue', async () => {
       repo.placeCoords.mockResolvedValue({ lat: 37.5, lng: 127.0 });
+      repo.recentCertExists.mockResolvedValue(false);
       geo.distanceMeters.mockResolvedValue(10);
       geo.isWithin.mockResolvedValue(true);
       id.generate.mockReturnValue('cert-v');
