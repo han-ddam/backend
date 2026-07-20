@@ -25,6 +25,7 @@ import { ReviewsQueryDto } from '@modules/ratings/dto/rating.dto';
 import { PlaceListQueryDto, NearbyQueryDto, PlaceCertFeedQueryDto } from './dto/place.dto';
 
 const SAFE_COMPOSITION_KEY = /^compositions\/[A-Za-z0-9_-]+\.(jpg|png|webp)$/;
+const SAFE_PLACE_IMAGE_KEY = /^places\/[A-Za-z0-9_-]+\.(jpg|png|webp)$/;
 
 @ApiTags('places')
 @Controller('places')
@@ -82,6 +83,17 @@ export class PlacesController {
     if (!SAFE_COMPOSITION_KEY.test(key)) throw new NotFoundException('photo not found');
     const file = await this.storage.read(key);
     if (!file) throw new NotFoundException('photo not found');
+    res.setHeader('Content-Type', file.mime);
+    file.stream.pipe(res);
+  }
+
+  /** 여행지 대표 이미지 (공개, 인증 불필요). */
+  @ApiOperation({ summary: '여행지 이미지 서빙 (공개)' })
+  @Get('images/:key(*)')
+  async image(@Param('key') key: string, @Res() res: Response) {
+    if (!SAFE_PLACE_IMAGE_KEY.test(key)) throw new NotFoundException('image not found');
+    const file = await this.storage.read(key);
+    if (!file) throw new NotFoundException('image not found');
     res.setHeader('Content-Type', file.mime);
     file.stream.pipe(res);
   }

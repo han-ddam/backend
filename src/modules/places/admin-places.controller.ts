@@ -73,6 +73,22 @@ export class AdminPlacesController {
     return this.places.adminSetWeightConfig(id, dto.configId);
   }
 
+  @ApiOperation({ summary: '여행지 대표 이미지 업로드 (어드민)' })
+  @ApiConsumes('multipart/form-data')
+  @Post(':id/image')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_BYTES } }))
+  async uploadImage(@Param('id') id: string, @UploadedFile() file?: Express.Multer.File) {
+    if (!file) throw new BadRequestException('file is required');
+    if (!MIME_EXT[file.mimetype]) throw new BadRequestException('unsupported image type');
+    return this.places.adminUploadImage(id, file.buffer, file.mimetype);
+  }
+
+  @ApiOperation({ summary: '여행지 대표 이미지 삭제 (어드민)' })
+  @Delete(':id/image')
+  deleteImage(@Param('id') id: string) {
+    return this.places.adminDeleteImage(id);
+  }
+
   @ApiOperation({ summary: '구도 예시 이미지 업로드 (어드민)' })
   @ApiConsumes('multipart/form-data')
   @Post(':id/compositions/photos')

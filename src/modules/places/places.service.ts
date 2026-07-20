@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { IdService } from '@platform/id/id.service';
 import { buildCursorPage, type CursorPage } from '@platform/pagination/cursor';
+import { STORAGE, type StoragePort } from '@platform/storage/storage.port';
 import type { Place, PlaceTrans, localeEnum, placeStatusEnum } from '@db/schema';
 import { RatingsService } from '@modules/ratings/ratings.service';
 import { WeightConfigsService } from '@modules/scoring/weight-configs.service';
@@ -77,6 +79,7 @@ export class PlacesService {
     private readonly id: IdService,
     private readonly ratings: RatingsService,
     private readonly weightConfigs: WeightConfigsService,
+    @Inject(STORAGE) private readonly storage: StoragePort,
   ) {}
 
   async getPlace(id: string, locale: Locale, userId?: string | null): Promise<PlaceView> {
@@ -257,6 +260,21 @@ export class PlacesService {
     const ok = await this.repo.setWeightConfig(placeId, configId);
     if (!ok) throw new NotFoundException('Place not found');
     return { updated: true };
+  }
+
+  /** 어드민 — 대표 이미지 업로드(로컬 스토리지) 후 image_url 갱신. */
+  async adminUploadImage(placeId: string, buffer: Buffer, mime: string): Promise<{ imageUrl: string }> {
+    if (!(await this.repo.placeExists(placeId))) throw new NotFoundException('Place not found');
+    const { key } = await this.storage.save(buffer, mime, 'places');
+    const imageUrl = `/api/places/images/${key}`;
+    await this.repo.setImageUrl(placeId, imageUrl);
+    return { imageUrl };
+  }
+
+  /** 어드민 — 대표 이미지 해제(image_url null). */
+  async adminDeleteImage(placeId: string): Promise<{ imageUrl: null }> {
+    if (!(await this.repo.setImageUrl(placeId, null))) throw new NotFoundException('Place not found');
+    return { imageUrl: null };
   }
 
   /** locale 행 우선, 없으면 KO 폴백. */
