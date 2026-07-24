@@ -122,5 +122,34 @@ describe('BookmarksService', () => {
       await service.list({ userId: 'u1', locale: 'KO' });
       expect(repo.listByUser).toHaveBeenCalledWith({ userId: 'u1', cursor: undefined, limit: 20 });
     });
+
+    it('falls back to KO when requested locale has no translation', async () => {
+      repo.listByUser.mockResolvedValue([row('p2')]);
+      repo.transForMany.mockResolvedValue([{ placeId: 'p2', locale: 'KO', name: '한라산' }]);
+      const out = await service.list({ userId: 'u1', locale: 'EN', limit: 20 });
+      expect(out.items[0].name).toBe('한라산');
+    });
+
+    it('passes through null imageUrl', async () => {
+      repo.listByUser.mockResolvedValue([row('p1', { imageUrl: null })]);
+      repo.transForMany.mockResolvedValue([]);
+      const out = await service.list({ userId: 'u1', locale: 'KO', limit: 20 });
+      expect(out.items[0].imageUrl).toBeNull();
+    });
+
+    it('clamps limit to 1 when requested limit is 0 or negative', async () => {
+      repo.listByUser.mockResolvedValue([]);
+      await service.list({ userId: 'u1', locale: 'KO', limit: 0 });
+      expect(repo.listByUser).toHaveBeenCalledWith({ userId: 'u1', cursor: undefined, limit: 1 });
+
+      await service.list({ userId: 'u1', locale: 'KO', limit: -5 });
+      expect(repo.listByUser).toHaveBeenCalledWith({ userId: 'u1', cursor: undefined, limit: 1 });
+    });
+
+    it('clamps limit to 100 when requested limit exceeds 100', async () => {
+      repo.listByUser.mockResolvedValue([]);
+      await service.list({ userId: 'u1', locale: 'KO', limit: 500 });
+      expect(repo.listByUser).toHaveBeenCalledWith({ userId: 'u1', cursor: undefined, limit: 100 });
+    });
   });
 });
