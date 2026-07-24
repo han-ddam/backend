@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS "user_place_bookmark_user_created_idx" ON "user_place_bookmark" USING btree ("user_id","created_at","place_id");

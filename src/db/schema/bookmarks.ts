@@ -17,6 +17,11 @@ export const userPlaceBookmarks = pgTable(
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.placeId] }),
     placeIdx: index('user_place_bookmark_place_idx').on(t.placeId),
+    userCreatedIdx: index('user_place_bookmark_user_created_idx').on(
+      t.userId,
+      t.createdAt,
+      t.placeId,
+    ),
   }),
 );
 
