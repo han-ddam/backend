@@ -4,3 +4,10 @@ import { z } from 'zod';
 export class CreateBookmarkDto extends createZodDto(
   z.object({ placeId: z.string().uuid() }),
 ) {}
+
+export class BookmarkListQueryDto extends createZodDto(
+  z.object({
+    cursor: z.string().optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+  }),
+) {}
