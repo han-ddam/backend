@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
 
 describe('UsersService', () => {
@@ -12,6 +13,7 @@ describe('UsersService', () => {
       handleExists: jest.fn().mockResolvedValue(false),
       list: jest.fn(),
       updateStatus: jest.fn(),
+      withdraw: jest.fn(),
     };
     let seq = 0;
     id = { generate: jest.fn(() => `id-${++seq}`) };
@@ -105,6 +107,35 @@ describe('UsersService', () => {
     it('throws when suspending a missing member', async () => {
       repo.updateStatus.mockResolvedValue(undefined);
       await expect(service.setStatus('nope', 'SUSPENDED')).rejects.toThrow();
+    });
+  });
+
+  describe('withdraw', () => {
+    it('returns {withdrawn:true} when repo withdraws the user', async () => {
+      repo.withdraw.mockResolvedValue({ id: 'u1', status: 'WITHDRAWN' });
+      const out = await service.withdraw('u1');
+      expect(repo.withdraw).toHaveBeenCalledWith('u1');
+      expect(out).toEqual({ withdrawn: true });
+    });
+
+    it('throws 404 when user not found', async () => {
+      repo.withdraw.mockResolvedValue(undefined);
+      await expect(service.withdraw('nope')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('reactivate', () => {
+    it('sets status ACTIVE and returns the user', async () => {
+      const u = { id: 'u1', status: 'ACTIVE' };
+      repo.updateStatus.mockResolvedValue(u);
+      const out = await service.reactivate('u1');
+      expect(repo.updateStatus).toHaveBeenCalledWith('u1', 'ACTIVE');
+      expect(out).toBe(u);
+    });
+
+    it('throws 404 when user not found', async () => {
+      repo.updateStatus.mockResolvedValue(undefined);
+      await expect(service.reactivate('nope')).rejects.toThrow(NotFoundException);
     });
   });
 });

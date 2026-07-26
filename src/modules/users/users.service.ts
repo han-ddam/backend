@@ -114,6 +114,20 @@ export class UsersService {
     return this.toMemberView(updated);
   }
 
+  /** 회원 탈퇴(소프트): 활동 데이터 삭제 + status=WITHDRAWN. 없으면 404. */
+  async withdraw(userId: string): Promise<{ withdrawn: true }> {
+    const user = await this.repo.withdraw(userId);
+    if (!user) throw new NotFoundException('User not found');
+    return { withdrawn: true };
+  }
+
+  /** 탈퇴 계정 복원: status=ACTIVE. 없으면 404. */
+  async reactivate(userId: string): Promise<User> {
+    const user = await this.repo.updateStatus(userId, 'ACTIVE');
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
   toMemberView(user: User): MemberView {
     return {
       id: user.id,

@@ -4,6 +4,15 @@ import { DRIZZLE, type DrizzleDB } from '@platform/database/drizzle.constants';
 import {
   users,
   oauthIdentity,
+  userPlaceRepresentative,
+  userRegionRepresentative,
+  certifications,
+  visits,
+  placeRatings,
+  userPlaceBookmarks,
+  scoreEvents,
+  userBadges,
+  refreshTokens,
   type User,
   type authProviderEnum,
   type userStatusEnum,
@@ -119,5 +128,30 @@ export class UsersRepository {
       .where(eq(users.id, id))
       .returning();
     return row;
+  }
+
+  /**
+   * 소프트 탈퇴: 유저 소유 활동 데이터 + refresh_token 삭제 후 status=WITHDRAWN.
+   * users 행/oauth_identity/user_agreement/제출 장소는 보존(tombstone·복원용).
+   */
+  async withdraw(userId: string): Promise<User | undefined> {
+    return this.db.transaction(async (tx) => {
+      // 활동 데이터 삭제 (전부 cascade 관계지만 명시적으로 userId 기준 삭제)
+      await tx.delete(userPlaceRepresentative).where(eq(userPlaceRepresentative.userId, userId));
+      await tx.delete(userRegionRepresentative).where(eq(userRegionRepresentative.userId, userId));
+      await tx.delete(certifications).where(eq(certifications.userId, userId)); // certification_image는 FK cascade
+      await tx.delete(visits).where(eq(visits.userId, userId));
+      await tx.delete(placeRatings).where(eq(placeRatings.userId, userId));
+      await tx.delete(userPlaceBookmarks).where(eq(userPlaceBookmarks.userId, userId));
+      await tx.delete(scoreEvents).where(eq(scoreEvents.userId, userId));
+      await tx.delete(userBadges).where(eq(userBadges.userId, userId));
+      await tx.delete(refreshTokens).where(eq(refreshTokens.userId, userId)); // 강제 로그아웃
+      const [row] = await tx
+        .update(users)
+        .set({ status: 'WITHDRAWN', updatedAt: new Date() })
+        .where(eq(users.id, userId))
+        .returning();
+      return row;
+    });
   }
 }
