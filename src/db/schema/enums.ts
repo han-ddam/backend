@@ -2,7 +2,7 @@ import { pgEnum } from 'drizzle-orm/pg-core';
 
 export const localeEnum = pgEnum('locale', ['KO', 'EN', 'JA', 'ZH']);
 
-export const userStatusEnum = pgEnum('user_status', ['ACTIVE', 'SUSPENDED']);
+export const userStatusEnum = pgEnum('user_status', ['ACTIVE', 'SUSPENDED', 'WITHDRAWN']);
 
 // 행정구역 단계 (국제 통용 용어). PROVINCE=시·도, DISTRICT=시·군·구
 export const regionLevelEnum = pgEnum('region_level', ['PROVINCE', 'DISTRICT']);
