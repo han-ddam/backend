@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 196" font-family="sans-serif">
+  <rect width="940" height="196" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <path d="M0,6 a6,6 0 0 1 6,-6 h928 a6,6 0 0 1 6,6 v26 h-940 z" fill="#10b981"/>
+  <text x="16" y="22" fill="#fff" font-size="14" font-weight="700">회원 탈퇴 (withdrawal) — DTO</text>
+  <g font-family="monospace" font-size="12" fill="#0f172a">
+    <text x="16" y="52" fill="#64748b" font-weight="700">[ 회원 ]  JwtAuth</text>
+
+    <text x="16" y="74"><tspan fill="#b91c1c">DELETE</tspan> /me   →  { withdrawn:true }</text>
+    <text x="16" y="92" fill="#64748b">    ※ 소프트 탈퇴 · status=WITHDRAWN(tombstone) · 멱등</text>
+
+    <text x="16" y="118" fill="#b45309">    ※ 삭제: 인증·방문·찜·평점·점수·대표장소·뱃지 + refreshToken(강제 로그아웃)</text>
+    <text x="16" y="136" fill="#b45309">    ※ 보존: 계정 식별정보·oauth·동의기록·제출 장소(created_by)</text>
+
+    <text x="16" y="162" fill="#2563eb">    ※ 복원: 같은 소셜계정 재로그인 시 자동 ACTIVE (활동 데이터는 복구 안 됨, 새 출발)</text>
+    <text x="16" y="180" fill="#2563eb">    ※ 탈퇴 후 남은 access token은 최대 15분 유효 → 만료 후 완전 차단</text>
+  </g>
+</svg>
