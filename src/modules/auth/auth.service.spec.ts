@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 
 describe('AuthService', () => {
@@ -17,6 +18,7 @@ describe('AuthService', () => {
       provisionFromOAuth: jest.fn().mockResolvedValue(user),
       toPublicProfile: jest.fn().mockReturnValue(publicProfile),
       getById: jest.fn().mockResolvedValue(user),
+      reactivate: jest.fn(),
     };
     tokens = {
       issueTokens: jest.fn().mockResolvedValue(tokenPair),
@@ -60,6 +62,27 @@ describe('AuthService', () => {
       expect(google.verify).toHaveBeenCalledWith('google-idtoken');
       expect(kakao.verify).not.toHaveBeenCalled();
       expect(naver.verify).not.toHaveBeenCalled();
+    });
+
+    it('reactivates a WITHDRAWN user then issues tokens', async () => {
+      const withdrawn = { id: 'u1', status: 'WITHDRAWN' };
+      const revived = { id: 'u1', status: 'ACTIVE' };
+      kakao.verify.mockResolvedValue({ provider: 'KAKAO', providerUserId: '1', displayName: 'x' });
+      users.provisionFromOAuth.mockResolvedValue(withdrawn);
+      users.reactivate.mockResolvedValue(revived);
+
+      const result = await service.loginWithOAuth('KAKAO', 'tok');
+
+      expect(users.reactivate).toHaveBeenCalledWith('u1');
+      expect(tokens.issueTokens).toHaveBeenCalledWith(revived); // 복원된 유저로 발급
+      expect(result).toEqual({ user: publicProfile, tokens: tokenPair });
+    });
+
+    it('rejects a SUSPENDED user with 403', async () => {
+      kakao.verify.mockResolvedValue({ provider: 'KAKAO', providerUserId: '1', displayName: 'x' });
+      users.provisionFromOAuth.mockResolvedValue({ id: 'u1', status: 'SUSPENDED' });
+      await expect(service.loginWithOAuth('KAKAO', 'tok')).rejects.toThrow(ForbiddenException);
+      expect(users.reactivate).not.toHaveBeenCalled();
     });
   });
 

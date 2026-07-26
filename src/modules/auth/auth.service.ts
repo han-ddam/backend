@@ -36,9 +36,12 @@ export class AuthService {
     accessToken: string,
   ): Promise<AuthResult> {
     const profile = await this.verifiers[provider].verify(accessToken);
-    const user = await this.users.provisionFromOAuth(profile);
+    let user = await this.users.provisionFromOAuth(profile);
     if (user.status === 'SUSPENDED') {
       throw new ForbiddenException('Account suspended');
+    }
+    if (user.status === 'WITHDRAWN') {
+      user = await this.users.reactivate(user.id); // 탈퇴 계정 자동 복원
     }
     return {
       user: this.users.toPublicProfile(user),
