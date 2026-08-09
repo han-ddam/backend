@@ -211,6 +211,13 @@
       "when": 1785066211550,
       "tag": "0029_wild_sleeper",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1786278601467,
+      "tag": "0030_normalize_place_image_https",
+      "breakpoints": true
     }
   ]
 }

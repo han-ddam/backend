@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import * as schema from '../schema';
+import { toHttpsTourImage } from './tour-image';
 
 /**
  * Seed the `place` table (관광지 좌표) from TourAPI areaBasedList2.
@@ -122,10 +123,11 @@ async function fetchPage(
         lng: num(i.mapx),
         areaCode: areacode,
         regionCode: areacode && sigungu ? `${areacode}_${sigungu}` : null,
-        image:
+        image: toHttpsTourImage(
           (i.firstimage2 && String(i.firstimage2).trim()) ||
-          (i.firstimage && String(i.firstimage).trim()) ||
-          null,
+            (i.firstimage && String(i.firstimage).trim()) ||
+            null,
+        ),
       };
     });
   return { items, totalCount };
