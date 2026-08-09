@@ -12,7 +12,13 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { AuthUser } from './auth.types';
-import { LogoutDto, OAuthLoginDto, RefreshDto } from './dto/auth.dto';
+import {
+  EmailLoginDto,
+  EmailSignupDto,
+  LogoutDto,
+  OAuthLoginDto,
+  RefreshDto,
+} from './dto/auth.dto';
 
 @ApiTags('auth')
 // stricter limit on auth endpoints (brute-force protection): 10 req / 60s per IP
@@ -38,6 +44,20 @@ export class AuthController {
   google(@Body() dto: OAuthLoginDto) {
     // accessToken 필드에 Google ID token 전달
     return this.auth.loginWithOAuth('GOOGLE', dto.accessToken);
+  }
+
+  @ApiOperation({ summary: '이메일 회원가입(테스트용)' })
+  @Post('email/signup')
+  emailSignup(@Body() dto: EmailSignupDto) {
+    return this.auth.signupWithEmail(dto.email, dto.password, dto.displayName);
+  }
+
+  @ApiOperation({ summary: '이메일 로그인(테스트용)' })
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('email/login')
+  @HttpCode(200)
+  emailLogin(@Body() dto: EmailLoginDto) {
+    return this.auth.loginWithEmail(dto.email, dto.password);
   }
 
   @ApiOperation({ summary: '토큰 재발급' })

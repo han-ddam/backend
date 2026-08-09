@@ -13,3 +13,18 @@ export class RefreshDto extends createZodDto(
 export class LogoutDto extends createZodDto(
   z.object({ refreshToken: z.string().min(1) }),
 ) {}
+
+export class EmailSignupDto extends createZodDto(
+  z.object({
+    email: z.string().email(),
+    password: z.string().min(8),
+    displayName: z.string().min(1).max(50).optional(),
+  }),
+) {}
+
+export class EmailLoginDto extends createZodDto(
+  z.object({
+    email: z.string().email(),
+    password: z.string().min(1),
+  }),
+) {}
