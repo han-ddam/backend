@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { hash } from '@node-rs/argon2';
 import { IdService } from '@platform/id/id.service';
 import type { User, userStatusEnum } from '@db/schema';
 import { UsersRepository } from './users.repository';
@@ -82,6 +83,30 @@ export class UsersService {
         providerUserId: profile.providerUserId,
       },
     );
+  }
+
+  /** 이메일 계정 가입(테스트용). 이메일 중복 시 409. */
+  async signupWithEmail(
+    email: string,
+    password: string,
+    displayName?: string,
+  ): Promise<User> {
+    if (await this.repo.findByEmail(email)) {
+      throw new ConflictException('Email already in use');
+    }
+    const passwordHash = await hash(password);
+    return this.repo.createEmailUser({
+      id: this.id.generate(),
+      handle: await this.generateUniqueHandle(),
+      displayName: displayName ?? '테스터',
+      email,
+      passwordHash,
+    });
+  }
+
+  /** 이메일로 유저 조회(passwordHash 포함) — 로그인 검증용. */
+  async findByEmail(email: string): Promise<User | undefined> {
+    return this.repo.findByEmail(email);
   }
 
   // --- admin member management ---

@@ -1,4 +1,5 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import { verify } from '@node-rs/argon2';
 import { UsersService } from './users.service';
 
 describe('UsersService', () => {
@@ -137,5 +138,50 @@ describe('UsersService', () => {
       repo.updateStatus.mockResolvedValue(undefined);
       await expect(service.reactivate('nope')).rejects.toThrow(NotFoundException);
     });
+  });
+});
+
+describe('UsersService.signupWithEmail', () => {
+  const makeRepo = () => ({
+    findByEmail: jest.fn().mockResolvedValue(undefined),
+    createEmailUser: jest.fn(async (i: any) => ({
+      id: i.id, handle: i.handle, displayName: i.displayName, email: i.email,
+      passwordHash: i.passwordHash, locale: 'KO', status: 'ACTIVE',
+      createdAt: new Date(), updatedAt: new Date(),
+    })),
+    handleExists: jest.fn().mockResolvedValue(false),
+  });
+  const id = { generate: jest.fn(() => 'u-1') };
+
+  it('creates an ACTIVE email user with an argon2 hash and generated handle', async () => {
+    const repo = makeRepo();
+    const svc = new UsersService(repo as any, id as any);
+    const user = await svc.signupWithEmail('t@x.com', 'password1', '테스터');
+    expect(repo.createEmailUser).toHaveBeenCalledTimes(1);
+    const arg = repo.createEmailUser.mock.calls[0][0];
+    expect(arg.email).toBe('t@x.com');
+    expect(arg.displayName).toBe('테스터');
+    expect(arg.handle).toMatch(/^user_[0-9a-f]{8}$/);
+    expect(arg.passwordHash).toMatch(/^\$argon2/);
+    expect(await verify(arg.passwordHash, 'password1')).toBe(true);
+    expect(user.status).toBe('ACTIVE');
+    expect((user as any).id).toBe('u-1');
+  });
+
+  it('defaults displayName when omitted', async () => {
+    const repo = makeRepo();
+    const svc = new UsersService(repo as any, id as any);
+    await svc.signupWithEmail('t@x.com', 'password1');
+    expect(repo.createEmailUser.mock.calls[0][0].displayName).toBe('테스터');
+  });
+
+  it('rejects duplicate email with ConflictException', async () => {
+    const repo = makeRepo();
+    repo.findByEmail.mockResolvedValue({ id: 'existing' });
+    const svc = new UsersService(repo as any, id as any);
+    await expect(svc.signupWithEmail('t@x.com', 'password1')).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(repo.createEmailUser).not.toHaveBeenCalled();
   });
 });
