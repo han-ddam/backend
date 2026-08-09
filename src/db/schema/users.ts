@@ -10,6 +10,7 @@ export const users = pgTable('users', {
   email: text('email').unique(), // nullable: social provider may not share it
   handle: text('handle').notNull().unique(), // e.g. @seoulriver
   displayName: text('display_name').notNull(),
+  passwordHash: text('password_hash'), // nullable: 소셜 전용 계정은 null, 이메일 계정만 세팅
   locale: localeEnum('locale').notNull().default('KO'),
   status: userStatusEnum('status').notNull().default('ACTIVE'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

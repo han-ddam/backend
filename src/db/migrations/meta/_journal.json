@@ -218,6 +218,13 @@
       "when": 1786278601467,
       "tag": "0030_normalize_place_image_https",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1786281617502,
+      "tag": "0031_email_password_hash",
+      "breakpoints": true
     }
   ]
 }
