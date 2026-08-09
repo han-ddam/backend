@@ -28,12 +28,41 @@ export interface CreateUserInput {
   email?: string | null;
 }
 
+export interface CreateEmailUserInput {
+  id: string;
+  handle: string;
+  displayName: string;
+  email: string;
+  passwordHash: string;
+}
+
 @Injectable()
 export class UsersRepository {
   constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
 
   async findById(id: string): Promise<User | undefined> {
     const [row] = await this.db.select().from(users).where(eq(users.id, id));
+    return row;
+  }
+
+  /** 이메일 계정 생성(oauth_identity 없음). email unique 위반은 서비스에서 사전 체크. */
+  async createEmailUser(input: CreateEmailUserInput): Promise<User> {
+    const [user] = await this.db
+      .insert(users)
+      .values({
+        id: input.id,
+        handle: input.handle,
+        displayName: input.displayName,
+        email: input.email,
+        passwordHash: input.passwordHash,
+      })
+      .returning();
+    return user;
+  }
+
+  /** 이메일로 유저 조회(passwordHash 포함). 로그인/가입 중복체크용. */
+  async findByEmail(email: string): Promise<User | undefined> {
+    const [row] = await this.db.select().from(users).where(eq(users.email, email));
     return row;
   }
 
