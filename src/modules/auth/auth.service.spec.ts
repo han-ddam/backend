@@ -1,4 +1,5 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { hash } from '@node-rs/argon2';
 import { AuthService } from './auth.service';
 
 describe('AuthService', () => {
@@ -102,5 +103,87 @@ describe('AuthService', () => {
       await service.logout('raw-refresh');
       expect(tokens.revoke).toHaveBeenCalledWith('raw-refresh');
     });
+  });
+});
+
+describe('AuthService email auth', () => {
+  const tokens = { issueTokens: jest.fn().mockResolvedValue({ accessToken: 'a', refreshToken: 'r' }) };
+  const publicProfile = (u: any) => ({ id: u.id, handle: u.handle, displayName: u.displayName });
+
+  const makeUsers = () => ({
+    signupWithEmail: jest.fn(),
+    findByEmail: jest.fn(),
+    toPublicProfile: jest.fn(publicProfile),
+  });
+  // AuthService(users, tokens, kakao, naver, google) — verifier 목은 이메일 경로에서 미사용
+  const noop = { verify: jest.fn() };
+  const make = (users: any) =>
+    new AuthService(users as any, tokens as any, noop as any, noop as any, noop as any);
+
+  const activeUser = async () => ({
+    id: 'u1', handle: 'user_aa', displayName: '테스터', email: 't@x.com',
+    status: 'ACTIVE', passwordHash: await hash('password1'),
+    locale: 'KO', createdAt: new Date(), updatedAt: new Date(),
+  });
+
+  afterEach(() => jest.clearAllMocks());
+
+  it('login: success issues tokens and returns public profile', async () => {
+    const users = makeUsers();
+    users.findByEmail.mockResolvedValue(await activeUser());
+    const res = await make(users).loginWithEmail('t@x.com', 'password1');
+    expect(res.user).toEqual({ id: 'u1', handle: 'user_aa', displayName: '테스터' });
+    expect(res.tokens).toEqual({ accessToken: 'a', refreshToken: 'r' });
+    expect(tokens.issueTokens).toHaveBeenCalledWith(expect.objectContaining({ id: 'u1' }));
+  });
+
+  it('login: unknown email → 401', async () => {
+    const users = makeUsers();
+    users.findByEmail.mockResolvedValue(undefined);
+    await expect(make(users).loginWithEmail('no@x.com', 'password1')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('login: social account (null passwordHash) → 401', async () => {
+    const users = makeUsers();
+    users.findByEmail.mockResolvedValue({ ...(await activeUser()), passwordHash: null });
+    await expect(make(users).loginWithEmail('t@x.com', 'password1')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('login: wrong password → 401', async () => {
+    const users = makeUsers();
+    users.findByEmail.mockResolvedValue(await activeUser());
+    await expect(make(users).loginWithEmail('t@x.com', 'WRONG')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(tokens.issueTokens).not.toHaveBeenCalled();
+  });
+
+  it('login: SUSPENDED → 403', async () => {
+    const users = makeUsers();
+    users.findByEmail.mockResolvedValue({ ...(await activeUser()), status: 'SUSPENDED' });
+    await expect(make(users).loginWithEmail('t@x.com', 'password1')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it('login: WITHDRAWN → 403', async () => {
+    const users = makeUsers();
+    users.findByEmail.mockResolvedValue({ ...(await activeUser()), status: 'WITHDRAWN' });
+    await expect(make(users).loginWithEmail('t@x.com', 'password1')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it('signup: returns user + tokens', async () => {
+    const users = makeUsers();
+    users.signupWithEmail.mockResolvedValue(await activeUser());
+    const res = await make(users).signupWithEmail('t@x.com', 'password1', '테스터');
+    expect(users.signupWithEmail).toHaveBeenCalledWith('t@x.com', 'password1', '테스터');
+    expect(res.user).toEqual({ id: 'u1', handle: 'user_aa', displayName: '테스터' });
+    expect(res.tokens).toEqual({ accessToken: 'a', refreshToken: 'r' });
   });
 });

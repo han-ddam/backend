@@ -1,4 +1,10 @@
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { verify } from '@node-rs/argon2';
 import { UsersService, type PublicProfile } from '@modules/users/users.service';
 import { TokenService, type TokenPair } from './tokens/token.service';
 import {
@@ -42,6 +48,37 @@ export class AuthService {
     }
     if (user.status === 'WITHDRAWN') {
       user = await this.users.reactivate(user.id); // 탈퇴 계정 자동 복원
+    }
+    return {
+      user: this.users.toPublicProfile(user),
+      tokens: await this.tokens.issueTokens(user),
+    };
+  }
+
+  /** 이메일 계정 가입 → 토큰 발급(테스트용). */
+  async signupWithEmail(
+    email: string,
+    password: string,
+    displayName?: string,
+  ): Promise<AuthResult> {
+    const user = await this.users.signupWithEmail(email, password, displayName);
+    return {
+      user: this.users.toPublicProfile(user),
+      tokens: await this.tokens.issueTokens(user),
+    };
+  }
+
+  /** 이메일+비번 로그인. 실패는 401(열거 방지), 정지/탈퇴는 403. */
+  async loginWithEmail(email: string, password: string): Promise<AuthResult> {
+    const user = await this.users.findByEmail(email);
+    if (!user || !user.passwordHash) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    if (!(await verify(user.passwordHash, password))) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    if (user.status === 'SUSPENDED' || user.status === 'WITHDRAWN') {
+      throw new ForbiddenException('Account not available');
     }
     return {
       user: this.users.toPublicProfile(user),
