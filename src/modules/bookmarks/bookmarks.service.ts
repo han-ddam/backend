@@ -15,17 +15,25 @@ export interface BookmarkListItem {
 export class BookmarksService {
   constructor(private readonly repo: BookmarksRepository) {}
 
-  async add(userId: string, placeId: string): Promise<{ placeId: string; bookmarked: true }> {
+  async add(
+    userId: string,
+    placeId: string,
+  ): Promise<{ placeId: string; bookmarked: true; total: number }> {
     if (!(await this.repo.placeActive(placeId))) {
       throw new NotFoundException('Place not found');
     }
     await this.repo.add(userId, placeId);
-    return { placeId, bookmarked: true };
+    const total = await this.repo.countByUser(userId);
+    return { placeId, bookmarked: true, total };
   }
 
-  async remove(userId: string, placeId: string): Promise<{ placeId: string; bookmarked: false }> {
+  async remove(
+    userId: string,
+    placeId: string,
+  ): Promise<{ placeId: string; bookmarked: false; total: number }> {
     await this.repo.remove(userId, placeId);
-    return { placeId, bookmarked: false };
+    const total = await this.repo.countByUser(userId);
+    return { placeId, bookmarked: false, total };
   }
 
   async list(params: {
@@ -33,7 +41,7 @@ export class BookmarksService {
     locale: Locale;
     cursor?: string;
     limit?: number;
-  }): Promise<CursorPage<BookmarkListItem>> {
+  }): Promise<CursorPage<BookmarkListItem> & { total: number }> {
     const limit = Math.min(Math.max(params.limit ?? 20, 1), 100);
     const rows = await this.repo.listByUser({
       userId: params.userId,
@@ -45,6 +53,7 @@ export class BookmarksService {
       page.items.map((r) => r.id),
       [params.locale, 'KO'],
     );
+    const total = await this.repo.countByUser(params.userId);
     return {
       items: page.items.map((r) => {
         const t =
@@ -60,6 +69,7 @@ export class BookmarksService {
         };
       }),
       nextCursor: page.nextCursor,
+      total,
     };
   }
 }

@@ -33,6 +33,16 @@ export class BookmarksRepository {
       .where(and(eq(userPlaceBookmarks.userId, userId), eq(userPlaceBookmarks.placeId, placeId)));
   }
 
+  /** 현재 유저의 찜 개수(ACTIVE place만 — 목록과 숫자 일치). */
+  async countByUser(userId: string): Promise<number> {
+    const [row] = await this.db
+      .select({ value: sql<number>`count(*)::int` })
+      .from(userPlaceBookmarks)
+      .innerJoin(places, eq(places.id, userPlaceBookmarks.placeId))
+      .where(and(eq(userPlaceBookmarks.userId, userId), eq(places.status, 'ACTIVE')));
+    return row?.value ?? 0;
+  }
+
   /** 유저의 찜 목록(ACTIVE만) — keyset(createdAt DESC, placeId DESC), limit+1개. */
   async listByUser(params: {
     userId: string;

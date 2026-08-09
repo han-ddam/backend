@@ -9,6 +9,7 @@ describe('BookmarksService', () => {
       placeActive: jest.fn(),
       add: jest.fn(),
       remove: jest.fn(),
+      countByUser: jest.fn().mockResolvedValue(0),
       listByUser: jest.fn(),
       transForMany: jest.fn(),
     };
@@ -25,18 +26,22 @@ describe('BookmarksService', () => {
     it('adds (idempotent) and returns bookmarked true', async () => {
       repo.placeActive.mockResolvedValue(true);
       repo.add.mockResolvedValue(undefined);
+      repo.countByUser.mockResolvedValue(5);
       const out = await service.add('u1', 'p1');
       expect(repo.add).toHaveBeenCalledWith('u1', 'p1');
-      expect(out).toEqual({ placeId: 'p1', bookmarked: true });
+      expect(repo.countByUser).toHaveBeenCalledWith('u1');
+      expect(out).toEqual({ placeId: 'p1', bookmarked: true, total: 5 });
     });
   });
 
   describe('remove', () => {
     it('removes (idempotent) and returns bookmarked false', async () => {
       repo.remove.mockResolvedValue(undefined);
+      repo.countByUser.mockResolvedValue(4);
       const out = await service.remove('u1', 'p1');
       expect(repo.remove).toHaveBeenCalledWith('u1', 'p1');
-      expect(out).toEqual({ placeId: 'p1', bookmarked: false });
+      expect(repo.countByUser).toHaveBeenCalledWith('u1');
+      expect(out).toEqual({ placeId: 'p1', bookmarked: false, total: 4 });
     });
   });
 
@@ -113,8 +118,9 @@ describe('BookmarksService', () => {
     it('empty bookmarks → empty page', async () => {
       repo.listByUser.mockResolvedValue([]);
       repo.transForMany.mockResolvedValue([]);
+      repo.countByUser.mockResolvedValue(0);
       const out = await service.list({ userId: 'u1', locale: 'KO', limit: 20 });
-      expect(out).toEqual({ items: [], nextCursor: null });
+      expect(out).toEqual({ items: [], nextCursor: null, total: 0 });
     });
 
     it('clamps limit default to 20', async () => {
@@ -151,5 +157,48 @@ describe('BookmarksService', () => {
       await service.list({ userId: 'u1', locale: 'KO', limit: 500 });
       expect(repo.listByUser).toHaveBeenCalledWith({ userId: 'u1', cursor: undefined, limit: 100 });
     });
+  });
+});
+
+describe('BookmarksService total (내 찜 개수)', () => {
+  const baseRepo = () => ({
+    placeActive: jest.fn().mockResolvedValue(true),
+    add: jest.fn().mockResolvedValue(undefined),
+    remove: jest.fn().mockResolvedValue(undefined),
+    countByUser: jest.fn().mockResolvedValue(7),
+    listByUser: jest.fn().mockResolvedValue([]),
+    transForMany: jest.fn().mockResolvedValue([]),
+  });
+
+  it('add returns bookmarked:true with my total', async () => {
+    const repo = baseRepo();
+    const res = await new BookmarksService(repo as any).add('u1', 'p1');
+    expect(res).toEqual({ placeId: 'p1', bookmarked: true, total: 7 });
+    expect(repo.countByUser).toHaveBeenCalledWith('u1');
+  });
+
+  it('add 404s when place inactive (no count)', async () => {
+    const repo = baseRepo();
+    repo.placeActive.mockResolvedValue(false);
+    await expect(new BookmarksService(repo as any).add('u1', 'p1')).rejects.toBeInstanceOf(NotFoundException);
+    expect(repo.countByUser).not.toHaveBeenCalled();
+  });
+
+  it('remove returns bookmarked:false with my total', async () => {
+    const repo = baseRepo();
+    repo.countByUser.mockResolvedValue(6);
+    const res = await new BookmarksService(repo as any).remove('u1', 'p1');
+    expect(res).toEqual({ placeId: 'p1', bookmarked: false, total: 6 });
+    expect(repo.countByUser).toHaveBeenCalledWith('u1');
+  });
+
+  it('list includes my total alongside items/nextCursor', async () => {
+    const repo = baseRepo();
+    repo.countByUser.mockResolvedValue(3);
+    const res = await new BookmarksService(repo as any).list({ userId: 'u1', locale: 'KO', limit: 20 });
+    expect(res.total).toBe(3);
+    expect(res).toHaveProperty('items');
+    expect(res).toHaveProperty('nextCursor');
+    expect(repo.countByUser).toHaveBeenCalledWith('u1');
   });
 });
